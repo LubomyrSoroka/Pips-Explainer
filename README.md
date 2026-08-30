@@ -1,0 +1,1 @@
+Attempts to provide explanation for solving Pips, the New York Times game.
