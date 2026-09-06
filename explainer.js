@@ -566,7 +566,7 @@ const updateDominoPartCounts = () => {
     dominoPartCounts = { ...initialDominoPartCounts }
     for (const entry of regions) {
         if (entry.type === 'sum') {
-            if (entry.indices.length === 1)
+            if (entry.indices.length === 1 && validIndices.has(entry.indices[0].join(',')))
                 dominoPartCounts[entry.target] -= 1;
             else if (entry.target > 7 && entry.target % 6 === 1) {// e.g. if it is 11, 17 and so on...
                 const sixesToSubtract = Math.trunc(entry.target / 6);
