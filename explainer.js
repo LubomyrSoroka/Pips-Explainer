@@ -58,9 +58,9 @@
 // type: either sum, less, greater, equals, unequals or empty
 // target: the target value in the sum, less or greater cases. 
 let indicesToRegion = {};
-const validIndices = new Set();
+let validIndices = new Set();
 
-const dominoPartCounts = {
+let dominoPartCounts = {
     0: 0,
     1: 0,
     2: 0,
@@ -69,19 +69,35 @@ const dominoPartCounts = {
     5: 0,
     6: 0
 }
+let initialDominoPartCounts = null;
 rowMin = 0;
 colMin = 0;
 rowMax = 0;
 colMax = 0;
 
+let regions = [];
 const getBoardCoords = (board) => {
+    let previousIndex;
     board.forEach((entry) => {
+        previousIndex = null;
         entry.indices.forEach((index) => {
             if (entry.type === 'unequals') {
                 entry.type = 'set';
                 entry.target = new Set([0, 1, 2, 3, 4, 5, 6]);
             }
-            indicesToRegion[index] = { type: entry.type, target: entry.target, indices: entry.indices, numberOfCells: entry.indices.length };
+            // if (i === 0)
+            //     indicesToRegion[index] = { type: entry.type, target: entry.target, indices: entry.indices, numberOfCells: entry.indices.length };
+            // else
+            //     indicesToRegion[index] = indicesToRegion
+            if (!previousIndex) {
+                indicesToRegion[index] = { type: entry.type, target: entry.target, indices: entry.indices, numberOfCells: entry.indices.length };
+                regions.push(indicesToRegion[index]);
+            }
+            else
+                indicesToRegion[index] = indicesToRegion[previousIndex];
+
+
+            previousIndex = index;
             validIndices.add(`${index[0]},${index[1]}`);
 
             rowMin = Math.min(rowMin, index[0]);
@@ -96,25 +112,17 @@ const getBoardCoords = (board) => {
         dominoPartCounts[domino[0]] += 1;
         dominoPartCounts[domino[1]] += 1;
     })
+    initialDominoPartCounts = { ...dominoPartCounts }
     return
 }
 
-let counter = 0
-const getConstantValue = () => {
-    return ++counter;
-}
-
-// const DOWN = getConstantValue();
-// const UP = getConstantValue();
-// const LEFT = getConstantValue();
-// const RIGHT = getConstantValue();
 const DOWN = 'down'
 const UP = 'up'
 const LEFT = 'left'
 const RIGHT = 'right'
 
-const OUT_OF_BOUNDS = getConstantValue();
-const INVALID_ARRANGEMENT = getConstantValue();
+const OUT_OF_BOUNDS = 'Out of bounds'
+const INVALID_ARRANGEMENT = 'Invalid arrangement'
 
 const canPlaceDomino = () => {
     return dominoes.length > foundDominoes.length;
@@ -159,19 +167,21 @@ const canPlaceDomino = () => {
 //     return placeArea;
 // }
 
-const foundDominoes = [];
-const rule_canOnlyBePlacedByOneDomino = (dominoes) => {
+let foundDominoes = [];
+const rule_canOnlyBePlacedByOneDomino = (dominoes, silenced = false) => {
     const foundAreasAndDominoes = [];
     const possibleDominoPlacements = [];
+    const originalConditionsPointer = indicesToRegion;
+    const originalRegionsPointer = regions;
     for (let i = rowMin; i <= rowMax; ++i) {
         for (let j = colMin; j <= colMax; ++j) {
             if (isOutOfBounds(i, j))
                 continue;
-            const possibleDominoPlacementsByArea = [];
             let validCount = 0;
             let validDomino = null;
             let validDirection = null;
-            const originalConditions = JSON.stringify(indicesToRegion);
+            // need to make a copy this way, since you want a deep copy
+            //const originalConditions = JSON.stringify(indicesToRegion);
             let validDirections = [DOWN, UP, LEFT, RIGHT];
             validDirections = validDirections.filter(direction => {
                 if (direction === DOWN) {
@@ -207,6 +217,9 @@ const rule_canOnlyBePlacedByOneDomino = (dominoes) => {
                     //}
                 }
                 for (let k = 0; k < flipCount; ++k) {
+                    indicesToRegion = structuredClone(originalConditionsPointer);
+                    regions = structuredClone(originalRegionsPointer);
+
                     if (!satisfiesRegionConditions(i, j, domino[k]))
                         continue;
                     adjustConditions([{ cell: [i, j], value: domino[k] }])
@@ -221,11 +234,15 @@ const rule_canOnlyBePlacedByOneDomino = (dominoes) => {
                             validDirection = direction;
                             validFlipped = k === 1;
                             const dominoEntry = {
-                                domino: domino,
-                                direction: direction,
+                                domino: validDomino,
+                                direction: validDirection,
                                 flipped: validFlipped
                             }
-                            possibleDominoPlacementsByArea[`${i},${j}`].push(dominoEntry)
+                            if (possibleDominoPlacements[`${i},${j}`]) {
+                                possibleDominoPlacements[`${i},${j}`].push(dominoEntry);
+                            } else {
+                                possibleDominoPlacements[`${i},${j}`] = [dominoEntry];
+                            }
                         }
                         // if (validCount > 1) {
                         //     indicesToRegion = JSON.parse(originalConditions);
@@ -233,14 +250,18 @@ const rule_canOnlyBePlacedByOneDomino = (dominoes) => {
                         // }
                     }
                     // revert to a new copy each time.
-                    indicesToRegion = JSON.parse(originalConditions);
+                    //indicesToRegion = JSON.parse(originalConditions);
                 }
 
             }
+
+            indicesToRegion = originalConditionsPointer;
+            regions = originalRegionsPointer;
+
             // in certain cases, two options will be identical. E.g., if you have a sum with two cells that's blocked on all side, 
             // then if you have a domino which equals that sum any side you flip it is equivalent
             // more generally, if there is only one placement somewhere and it's in a sum, then flipping the domino won't do anything.
-            if (validCount === 1) {
+            if (possibleDominoPlacements[`${i},${j}`]?.length === 1) {
                 let otherIndices = getOtherIndex([i, j], validDirection);
                 let [index1, index2] = validFlipped ? [1, 0] : [0, 1];
                 adjustConditions([{ cell: [i, j], value: validDomino[index1] }, { cell: otherIndices, value: validDomino[index2] }]);
@@ -254,13 +275,16 @@ const rule_canOnlyBePlacedByOneDomino = (dominoes) => {
                     direction: validDirection,
                     flipped: validFlipped
                 }
-                console.log("added domino", dominoEntry)
+                if (!silenced)
+                    console.log("added domino", dominoEntry)
 
                 foundAreasAndDominoes.push(dominoEntry);
                 foundDominoes.push(validDomino);
                 //possibleDominoPlacements.push(...possibleDominoPlacementsByArea);
             }
-            else if (validCount === 0) {
+            // is it even necessary to check for the second condition in this or?
+            // if nothing is added, would it just be undefined?
+            else if (!possibleDominoPlacements[`${i},${j}`] || possibleDominoPlacements[`${i},${j}`].length === 0) {
                 return INVALID_ARRANGEMENT;
             }
         }
@@ -270,6 +294,7 @@ const rule_canOnlyBePlacedByOneDomino = (dominoes) => {
     else
         return { possiblePlacements: possibleDominoPlacements };
 }
+
 
 const getOtherIndex = ([i, j], direction) => {
     switch (direction) {
@@ -289,24 +314,87 @@ const getOtherIndex = ([i, j], direction) => {
 const lookAhead = (possibleDominoPlacements) => {
     // start from the area that has the least possibilities.
     const objectToArray = Object.entries(possibleDominoPlacements).sort((a, b) => a[1].length - b[1].length);
+    const possibleDominoPlacementsDefinite = [];
+    const possibleDominoPlacementsTree = []
+    const originalValidIndices = new Set(validIndices);
+    const originalFoundDominoes = [...foundDominoes];
+    let validOption = null;
+    const originalConditionsPointer = indicesToRegion;
+    const originalRegionsPointer = regions;
     for (const [cellString, options] of objectToArray) {
-        let validOptions = 0;
+        const [row, col] = cellString.split(',');
+        const cell = [Number(row), Number(col)];
         for (const option of options) {
-            const originalConditions = JSON.stringify(indicesToRegion);
-            const [row, col] = cellString.split(',');
-            const cell = [Number(row), Number(col)];
+            indicesToRegion = structuredClone(originalConditionsPointer);
+            regions = structuredClone(originalRegionsPointer);
+
             const otherIndices = getOtherIndex(cell, option.direction);
-            adjustConditions({ cell: cell, value: option.domino[0] }, { cell: otherIndices, value: option.domino[1] });
-            let result = runRules(); // if any of the rules fail, then this option must not be possible
-            if (result !== INVALID_ARRANGEMENT)
-                ++validOptions;
-            indicesToRegion = JSON.parse(originalConditions);
+            adjustConditions([{ cell: cell, value: option.domino[option.flipped ? 1 : 0] }, { cell: otherIndices, value: option.domino[option.flipped ? 0 : 1] }]);
+            validIndices.delete(cellString)
+            validIndices.delete(`${otherIndices[0]},${otherIndices[1]}`);
+            foundDominoes.push(option.domino);
+
+            let result = runRules(true) // if any of the rules fail, then this option must not be possible
+
+            if (result?.foundPlacements) {
+                if (!canPlaceDomino()) {
+                    const dominoEntry = {
+                        area: cell,
+                        domino: option.domino,
+                        direction: option.direction,
+                        flipped: option.flipped
+                    }
+                    return { foundPlacements: [dominoEntry, ...result?.foundPlacements] };
+
+                }
+                validOption = option;
+                (possibleDominoPlacementsDefinite[cellString] ??= []).push(result?.foundPlacements);
+            }
+            else if (result?.possiblePlacements) {
+                validOption = option;
+                (possibleDominoPlacementsTree[cellString] ??= []).push(result?.possiblePlacements);
+            }
+            //indicesToRegion = JSON.parse(originalConditions);
+            validIndices = new Set(originalValidIndices);
+            foundDominoes = [...originalFoundDominoes];
         }
-        if (validOptions === 1) {
-            // if there is only one validOption, break, place that domino down and run the rules again.
-            break;
+
+        indicesToRegion = originalConditionsPointer;
+        regions = originalRegionsPointer;
+
+        // if there is only one validOption, break, place that domino down and run the rules again.
+        if ((possibleDominoPlacementsDefinite[cellString]?.length ?? 0) + (possibleDominoPlacementsTree[cellString]?.length ?? 0) === 1) {
+
+            const dominoEntry = {
+                area: cell,
+                domino: validOption.domino,
+                direction: validOption.direction,
+                flipped: validOption.flipped
+            }
+
+            foundDominoes.push(validOption.domino);
+            const otherIndices = getOtherIndex(cell, validOption.direction);
+            validIndices.delete(cellString);
+            validIndices.delete(`${otherIndices[0]},${otherIndices[1]}`);
+            adjustConditions([{ cell: cell, value: validOption.domino[validOption.flipped ? 1 : 0] }, { cell: otherIndices, value: validOption.domino[validOption.flipped ? 0 : 1] }]);
+
+            for (const definite of possibleDominoPlacementsDefinite[cellString] ?? []) {
+                for (const dominoEntry of definite.foundPlacements) {
+                    foundDominoes.push(dominoEntry.domino);
+                    const otherIndex = getOtherIndex(dominoEntry.area, dominoEntry.direction)
+                    validIndices.delete(`${dominoEntry.area[0]},${dominoEntry.area[1]}`);
+                    validIndices.delete(`${otherIndex[0]},${otherIndex[1]}`);
+                    adjustConditions([{ cell: dominoEntry.area, value: dominoEntry.domino[dominoEntry.flipped ? 1 : 0] }, { cell: otherIndex, value: dominoEntry.domino[dominoEntry.flipped ? 0 : 1] }]);
+                }
+            }
+
+            const result = { foundPlacements: [dominoEntry, ...(possibleDominoPlacementsDefinite[cellString] ?? [])] }
+            console.dir(result, { depth: null });
+            return result;
+
         }
-        else if (validOptions === 0) {
+
+        else if ((possibleDominoPlacementsDefinite[cellString]?.length ?? 0) + (possibleDominoPlacementsTree[cellString]?.length ?? 0) === 0) {
             // then if this was called recursively, you know that one scenario that you were considering is incorrect.
             return INVALID_ARRANGEMENT;
         }
@@ -354,62 +442,88 @@ const adjustConditions = (modifications) => {
         const regionCondition = indicesToRegion[modificationCellKey];
 
         if (regionCondition.type === 'sum') {
-            regionCondition.indices.forEach(index => {
-                const indexKey = `${index[0]},${index[1]}`;
-                indicesToRegion[indexKey].target -= modification.value;
-                indicesToRegion[indexKey].numberOfCells -= 1;
-            })
+            // regionCondition.indices.forEach(index => {
+            //     const indexKey = `${index[0]},${index[1]}`;
+            //     indicesToRegion[indexKey].target -= modification.value;
+            //     indicesToRegion[indexKey].numberOfCells -= 1;
+            // })
+            regionCondition.numberOfCells -= 1;
+            regionCondition.target -= modification.value;
         }
         else if (regionCondition.type === 'set') {
-            regionCondition.indices.forEach(index => {
-                const indexKey = `${index[0]},${index[1]}`;
-                indicesToRegion[indexKey].target.delete(modification.value);
-                indicesToRegion[indexKey].numberOfCells -= 1;
-            })
+            // regionCondition.indices.forEach(index => {
+            //     const indexKey = `${index[0]},${index[1]}`;
+            //     indicesToRegion[indexKey].target.delete(modification.value);
+            //     indicesToRegion[indexKey].numberOfCells -= 1;
+            // })
+            regionCondition.numberOfCells -= 1;
+            regionCondition.target.delete(modification.value);
         }
         else if (regionCondition.type === 'less') {
-            regionCondition.indices.forEach(index => {
-                const indexKey = `${index[0]},${index[1]}`;
-                indicesToRegion[indexKey].target -= modification.value;
-                indicesToRegion[indexKey].numberOfCells -= 1;
-            })
+            // regionCondition.indices.forEach(index => {
+            //     const indexKey = `${index[0]},${index[1]}`;
+            //     indicesToRegion[indexKey].target -= modification.value;
+            //     indicesToRegion[indexKey].numberOfCells -= 1;
+            // })
+            regionCondition.numberOfCells -= 1;
+            regionCondition.target -= modification.value;
         }
         else if (regionCondition.type === 'greater') {
-            regionCondition.indices.forEach(index => {
-                const indexKey = `${index[0]},${index[1]}`;
-                indicesToRegion[indexKey].target -= modification.value;
-                indicesToRegion[indexKey].numberOfCells -= 1;
-            })
+            // regionCondition.indices.forEach(index => {
+            //     const indexKey = `${index[0]},${index[1]}`;
+            //     indicesToRegion[indexKey].target -= modification.value;
+            //     indicesToRegion[indexKey].numberOfCells -= 1;
+            // })
+            regionCondition.numberOfCells -= 1;
+            regionCondition.target -= modification.value;
         }
         else if (regionCondition.type === 'equals') {
             // if you know one value from the equals, then set all of them to be a sum of that single value.
             regionCondition.indices.forEach(index => {
                 const indexKey = `${index[0]},${index[1]}`;
                 indicesToRegion[indexKey] = { type: 'sum', target: modification.value, numberOfCells: 1, indices: [index] };
+                regions.push(indicesToRegion[indexKey]);
             })
+            // no need for this because the value would already get replaced.
+            //delete indicesToRegion[modificationCellKey];
+
+            regions.splice(regions.indexOf(regionCondition), 1);
+
         }
     }
 }
 
 const updateSumMultipleOfSixAndZeroes = () => {
-    for (const [index, entry] of board.entries()) {
+    for (const [index, entry] of regions.entries()) {
         if (entry.type === 'sum') {
-            if (entry.indices.length >= 2 && entry.target > 0 && entry.target % 6 === 0) {
-                console.log(`replacing region ${JSON.stringify(entry.indices)} with 6's`)
-                board.splice(index, 1);
+            if (entry.indices.length >= 2 && entry.target > 12 && entry.target % 6 === 0) {
+                const replaced = false;
                 for (const index of entry.indices) {
                     const indexKey = `${index[0]},${index[1]}`;
-                    indicesToRegion[indexKey] = { type: 'sum', target: 6, numberOfCells: 1, indices: [index] }
-                    board.push({ type: 'sum', target: 6, indices: [index] })
+                    if (validIndices.has(indexKey)) {
+                        replced = true;
+                        indicesToRegion[indexKey] = { type: 'sum', target: 6, numberOfCells: 1, indices: [index] }
+                        regions.push(indicesToRegion[indexKey]);
+                    }
+                }
+                if (replaced) {
+                    regions.splice(index, 1);
+                    console.log(`replacing region ${JSON.stringify(entry.indices)} with 6's`)
                 }
             }
             else if (entry.indices.length >= 2 && entry.target === 0) {
-                console.log(`replacing region ${JSON.stringify(entry.indices)} with 0's`)
-                board.splice(index, 1);
+                const replaced = false;
                 for (const index of entry.indices) {
                     const indexKey = `${index[0]},${index[1]}`;
-                    indicesToRegion[indexKey] = { type: 'sum', target: 0, numberOfCells: 1, indices: [index] }
-                    board.push({ type: 'sum', target: 0, indices: [index] })
+                    if (validIndices.has(indexKey)) {
+                        replaced = true;
+                        indicesToRegion[indexKey] = { type: 'sum', target: 0, numberOfCells: 1, indices: [index] }
+                        regions.push(indicesToRegion[indexKey]);
+                    }
+                }
+                if (replaced) {
+                    console.log(`replacing region ${JSON.stringify(entry.indices)} with 0's`)
+                    regions.splice(index, 1);
                 }
             }
         }
@@ -417,12 +531,12 @@ const updateSumMultipleOfSixAndZeroes = () => {
 }
 
 const updateEqualsRegions = () => {
-    entryLoop: for (const [index, entry] of board.entries()) {
+    entryLoop: for (const [index, entry] of regions.entries()) {
         if (entry.type === 'equals') {
             const numberOfCells = entry.indices.length;
             let numberOfPossibleValues = 0;
             let validDominoPart = null;
-            for (const [dominoPart, count] of Object.entries(dominoPartCounts)) {
+            for (const [dominoPart, count] of Object.entries(dominoPartCounts).map(([key, value]) => [Number(key), value])) {
                 if (count >= numberOfCells) {
                     numberOfPossibleValues += 1;
                     validDominoPart = dominoPart;
@@ -433,20 +547,24 @@ const updateEqualsRegions = () => {
             }
             if (numberOfPossibleValues === 1) {
                 console.log(`replacing region ${JSON.stringify(entry.indices)} with ${validDominoPart}`)
-                board.splice(index, 1);
+                regions.splice(index, 1);
                 for (const index of entry.indices) {
                     const indexKey = `${index[0]},${index[1]}`;
                     indicesToRegion[indexKey] = { type: 'sum', target: validDominoPart, numberOfCells: 1, indices: [index] };
-                    board.push({ type: 'sum', target: validDominoPart, indices: [index] });
+                    regions.push(indicesToRegion[indexKey]);
                 }
             }
+            else if (numberOfPossibleValues === 0)
+                return INVALID_ARRANGEMENT;
         }
     }
 }
 
 
-const updateCellCounts = () => {
-    for (const entry of board) {
+const updateDominoPartCounts = () => {
+
+    dominoPartCounts = { ...initialDominoPartCounts }
+    for (const entry of regions) {
         if (entry.type === 'sum') {
             if (entry.indices.length === 1)
                 dominoPartCounts[entry.target] -= 1;
@@ -459,7 +577,9 @@ const updateCellCounts = () => {
                 return INVALID_ARRANGEMENT;
         }
     }
-    console.log(dominoPartCounts);
+
+
+    //console.log(dominoPartCounts);
     return true;
 }
 
@@ -510,22 +630,25 @@ const isOutOfBounds = (row, col) => {
 
 const fs = require("fs");
 
-const data = JSON.parse(fs.readFileSync("test.json"));
-//const data = JSON.parse(fs.readFileSync("test-equals.json"));
-//const data = JSON.parse(fs.readFileSync("test-multiple-of-6.json"));
-
+//const data = JSON.parse(fs.readFileSync("test.json")); // Aug 25
+const data = JSON.parse(fs.readFileSync("test-equals.json")); // Aug 15
+//const data = JSON.parse(fs.readFileSync("test-multiple-of-6.json")); // Aug 24
 
 const dominoes = data.dominoes;
 const board = data.regions;
 
 
-const runRules = () => {
-    updateSumMultipleOfSixAndZeroes();
-    let result = updateCellCounts();
-    if (result === INVALID_ARRANGEMENT)
-        return result;
-    updateEqualsRegions();
-    return rule_canOnlyBePlacedByOneDomino(dominoes);
+const runRules = (silenced = false) => {
+    let result = rule_canOnlyBePlacedByOneDomino(dominoes, silenced);
+    if (!result?.foundPlacements && result !== INVALID_ARRANGEMENT) {
+        updateSumMultipleOfSixAndZeroes();
+        result = updateDominoPartCounts();
+        if (result !== INVALID_ARRANGEMENT) {
+            updateEqualsRegions();
+            result = rule_canOnlyBePlacedByOneDomino(dominoes, silenced);
+        }
+    }
+    return result
 }
 
 getBoardCoords(board);
@@ -535,20 +658,29 @@ getBoardCoords(board);
 // updateEqualsRegions();
 // runRules()
 
+// first, try to place anything down using the simplest rule.
+// if that doesn't work, try updating the equals and then trying to place something down using the simplest rule again.
+// if that doesn't work, then try to look ahead and see if that let's you place anything down. 
+// if that doesn't work, then need to look further down.
+
+
 let result = null;
-while (canPlaceDomino()) {
-    result = rule_canOnlyBePlacedByOneDomino(dominoes);
+const MAX_ITERATIONS = 100;
+let iterations = 0;
+while (canPlaceDomino() && iterations++ < MAX_ITERATIONS) {
+    result = runRules()
     if (!result?.foundPlacements && result !== INVALID_ARRANGEMENT) {
-        console.log(result.possiblePlacements);
-        break;
+        // remove the conditions from updating equals if it isn't necessary?
+        result = lookAhead(result.possiblePlacements);
     }
     if (result === INVALID_ARRANGEMENT)
         break;
 }
 
-// if (result !== null && result !== INVALID_ARRANGEMENT) {
-//     console.log("puzzle solved");
-// }
+console.dir(result, { depth: null });
+if (!canPlaceDomino())
+    console.log("puzzle solved?")
+
 
 
 
