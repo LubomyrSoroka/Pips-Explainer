@@ -388,6 +388,11 @@ const lookAhead = (possibleDominoPlacements) => {
 
             if (result?.foundPlacements) {
                 if (!canPlaceDomino()) {
+                    if(prevData?.previous){
+                        console.log(`${prevData.previous.length} depth search performed`);
+                        console.dir(prevData.previous, {depth: null});
+                        console.dir(prevData.foundPlacements, {depth: null});
+                    }
                     const dominoEntry = {
                         area: cell,
                         domino: option.domino,
@@ -436,6 +441,7 @@ const lookAhead = (possibleDominoPlacements) => {
         validIndices = new Set(originalValidIndices);
         foundDominoes = [...originalFoundDominoes];
 
+        // what if this is length 1 but this one entry includes only possiblePlacements and no foundPlacements?
         if (placementsByCell[cellString].length === 1) {
 
             const dominoEntry = {
@@ -742,8 +748,8 @@ const isOutOfBounds = (row, col) => {
 // Aug 24, 2026 easy
 // Aug 17, 2026 Medium
 
-const date = new Date('2026-08-25T00:00:00Z'); // leave the part after T to ensure that this is in UTC. That way when converting the date to string, it doesn't change based on your timezone.
-const difficulty = EASY;
+const date = new Date('2026-08-19T00:00:00Z'); // leave the part after T to ensure that this is in UTC. That way when converting the date to string, it doesn't change based on your timezone.
+const difficulty = MEDIUM;
 const allData = await fetch(`https://www.nytimes.com/svc/pips/v1/${date.toISOString().split('T')[0]}.json`, {
     headers: {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/[IP_ADDRESS] Safari/537.36'
