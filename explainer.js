@@ -278,8 +278,10 @@ const rule_canOnlyBePlacedByOneDomino = (dominoes, silenced = false) => {
                     direction: validDirection,
                     flipped: validFlipped
                 }
-                if (!silenced)
+                if (!silenced) {
+                    console.log("Added domino in this position as it is the only one that fits in this cell.")
                     console.log("added domino", dominoEntry)
+                }
 
                 foundAreasAndDominoes.push(dominoEntry);
                 foundDominoes.push(validDomino);
@@ -369,6 +371,14 @@ const lookAhead = (possibleDominoPlacements) => {
 
         const [row, col] = cellString.split(',');
         const cell = [Number(row), Number(col)];
+        let lastValidPlacement = null;
+        let validPlacementCount = 0;
+
+        // e.g., cell 0,0 has 3 possiblities
+        const cellPossibilityCounts = {};
+
+        // but only one is valid.
+        const cellValidCounts = {}
 
         for (const option of options) {
 
@@ -388,10 +398,10 @@ const lookAhead = (possibleDominoPlacements) => {
 
             if (result?.foundPlacements) {
                 if (!canPlaceDomino()) {
-                    if(prevData?.previous){
+                    if (prevData?.previous) {
                         console.log(`${prevData.previous.length} depth search performed`);
-                        console.dir(prevData.previous, {depth: null});
-                        console.dir(prevData.foundPlacements, {depth: null});
+                        console.dir(prevData.previous, { depth: null });
+                        console.dir(prevData.foundPlacements, { depth: null });
                     }
                     const dominoEntry = {
                         area: cell,
@@ -420,6 +430,14 @@ const lookAhead = (possibleDominoPlacements) => {
             //const foundPlacementsArray = Object.entries(result.foundPlacements);
             //const possiblePlacementsArray = Object.entries(result.possiblePlacements).sort((a, b) => a[1].length - b[1].length)
 
+            // if only one has definite placements, then the idea is that you should put down the definite placements
+            // and rerun it to find more definite placements. But it would be better if when you receive the definite placements,
+            // it's guaranteed that there are no more such placements.
+            if (result !== INVALID_ARRANGEMENT) {
+                lastValidPlacement = result;
+                ++validPlacementCount;
+            }
+
             // THIS IS SO INEFFICIENT
             if (prevData?.previous)
                 //placementsByCell[cellString].push({ previous: [...prevData?.previous, { cell, ...option }], possiblePlacements: result.possiblePlacements, foundPlacements: result.foundPlacements });
@@ -441,9 +459,11 @@ const lookAhead = (possibleDominoPlacements) => {
         validIndices = new Set(originalValidIndices);
         foundDominoes = [...originalFoundDominoes];
 
-        // what if this is length 1 but this one entry includes only possiblePlacements and no foundPlacements?
-        if (placementsByCell[cellString].length === 1) {
-
+        // if you've previously placed a domino, then this doesn't work. 
+        // so do you just check for that? 
+        // in the case of checking possibilities of two dominoes, you would need to check that only one of all possibilites works (then you can place it).
+        // number of possibilities = ?
+        if (validPlacementCount === 1 && !prevData?.previous) {
             const dominoEntry = {
                 area: cell,
                 domino: validOption.domino,
@@ -451,14 +471,18 @@ const lookAhead = (possibleDominoPlacements) => {
                 flipped: validOption.flipped
             }
 
+            console.log(`Added domino because all other possibilities yield invalid configurations at cell ${cellString}`)
+            console.dir(dominoEntry, { depth: null });
             foundDominoes.push(validOption.domino);
             const otherIndices = getOtherIndex(cell, validOption.direction);
             validIndices.delete(cellString);
             validIndices.delete(`${otherIndices[0]},${otherIndices[1]}`);
             adjustConditions([{ cell: cell, value: validOption.domino[validOption.flipped ? 1 : 0] }, { cell: otherIndices, value: validOption.domino[validOption.flipped ? 0 : 1] }]);
 
-            for (const definite of placementsByCell[cellString].foundPlacements ?? []) {
-                for (const dominoEntry of definite) {
+            if (lastValidPlacement.foundPlacements.length > 0) {
+                console.log("Added domino in this position as it is the only one that fits in this cell.")
+                console.dir(lastValidPlacement.foundPlacements, { depth: null });
+                for (const dominoEntry of lastValidPlacement.foundPlacements) {
                     foundDominoes.push(dominoEntry.domino);
                     const otherIndex = getOtherIndex(dominoEntry.area, dominoEntry.direction)
                     validIndices.delete(`${dominoEntry.area[0]},${dominoEntry.area[1]}`);
@@ -467,16 +491,15 @@ const lookAhead = (possibleDominoPlacements) => {
                 }
             }
 
-            const result = { foundPlacements: [dominoEntry, ...(placementsByCell[cellString].foundPlacements ?? [])] }
-            console.dir(result, { depth: null });
+            const result = { foundPlacements: [dominoEntry, ...lastValidPlacement.foundPlacements] }
             return result;
 
         }
-        // if there is no cellString object, then nothing was ever appended; it's invalid.
-        else if (!Object.keys(placementsByCell).includes(cellString)) {
+        else if (validPlacementCount === 0)
             // then if this was called recursively, you know that one scenario that you were considering is incorrect.
-            return INVALID_ARRANGEMENT;
-        }
+            // return INVALID_ARRANGEMENT;
+            // then this case isn't possible.
+            continue;
 
         // instead of sorting them here, could just push them in a way which maintains sorted order?
         //const toAppend = Object.entries(placementsByCell).sort((a, b) => a[1].possiblePlacements?.length - b[1].possiblePlacements?.length);
@@ -484,9 +507,10 @@ const lookAhead = (possibleDominoPlacements) => {
 
         stuffToPush.sort((a, b) => a[1].possiblePlacements?.length - b[1].possiblePlacements?.length);
         objectToArray.push(...stuffToPush);
-
     }
+
 }
+
 
 
 // checks if it is possible for domino to go into [row, col]. assume that row and col exist in the grid.
@@ -743,12 +767,12 @@ const isOutOfBounds = (row, col) => {
 
 
 // test puzzles:
-// Aug 25, 2026 easy
-// Aug 15, 2026 easy
-// Aug 24, 2026 easy
+// Aug 25, 2026 easy // requires trying one of more than one possibility to finish the puzzle.
+// Aug 15, 2026 easy // requires one look ahead
+// Aug 24, 2026 easy // no looking ahead
 // Aug 17, 2026 Medium
 
-const date = new Date('2026-08-19T00:00:00Z'); // leave the part after T to ensure that this is in UTC. That way when converting the date to string, it doesn't change based on your timezone.
+const date = new Date('2026-08-17T00:00:00Z'); // leave the part after T to ensure that this is in UTC. That way when converting the date to string, it doesn't change based on your timezone.
 const difficulty = MEDIUM;
 const allData = await fetch(`https://www.nytimes.com/svc/pips/v1/${date.toISOString().split('T')[0]}.json`, {
     headers: {
@@ -797,6 +821,7 @@ getBoardCoords(board);
 let result = null;
 const MAX_ITERATIONS = 100;
 let iterations = 0;
+
 while (canPlaceDomino() && iterations++ < MAX_ITERATIONS) {
     result = runRules()
     //if (!(result?.foundPlacements || result.foundPlacements.length === 1) && result !== INVALID_ARRANGEMENT) {
