@@ -279,7 +279,7 @@ const rule_canOnlyBePlacedByOneDomino = (dominoes, silenced = false) => {
                     flipped: validFlipped
                 }
                 if (!silenced) {
-                    console.log("Added domino in this position as it is the only one that fits in this cell.")
+                    console.log("Added domino in this position through rule_canOnlyBePlacedByOneDomino")
                     console.log("added domino", dominoEntry)
                 }
 
@@ -374,12 +374,6 @@ const lookAhead = (possibleDominoPlacements) => {
         let lastValidPlacement = null;
         let validPlacementCount = 0;
 
-        // e.g., cell 0,0 has 3 possiblities
-        const cellPossibilityCounts = {};
-
-        // but only one is valid.
-        const cellValidCounts = {}
-
         for (const option of options) {
 
             ({ indicesToRegion, regions } = structuredClone({ indicesToRegion: savedIndicesToRegion, regions: savedRegions }));
@@ -471,7 +465,7 @@ const lookAhead = (possibleDominoPlacements) => {
                 flipped: validOption.flipped
             }
 
-            console.log(`Added domino because all other possibilities yield invalid configurations at cell ${cellString}`)
+            console.log(`Added domino because lookahead validPlacementCount equals one for all options at this cell: ${cellString}`)
             console.dir(dominoEntry, { depth: null });
             foundDominoes.push(validOption.domino);
             const otherIndices = getOtherIndex(cell, validOption.direction);
@@ -480,7 +474,7 @@ const lookAhead = (possibleDominoPlacements) => {
             adjustConditions([{ cell: cell, value: validOption.domino[validOption.flipped ? 1 : 0] }, { cell: otherIndices, value: validOption.domino[validOption.flipped ? 0 : 1] }]);
 
             if (lastValidPlacement.foundPlacements.length > 0) {
-                console.log("Added domino in this position as it is the only one that fits in this cell.")
+                console.log("This domino found through rule_canOnlyBePlacedByOneDomino from placing the only valid domino")
                 console.dir(lastValidPlacement.foundPlacements, { depth: null });
                 for (const dominoEntry of lastValidPlacement.foundPlacements) {
                     foundDominoes.push(dominoEntry.domino);
@@ -793,16 +787,24 @@ const board = data.regions;
 
 
 const runRules = (silenced = false) => {
-    let result = rule_canOnlyBePlacedByOneDomino(dominoes, silenced);
-    if (result?.foundPlacements && result.foundPlacements.length === 0) {
+    let result = runUntilNoDefinitePlacements(dominoes, silenced);
+    if (!result?.foundPlacements && result !== INVALID_ARRANGEMENT) {
         updateSumMultipleOfSixAndZeroes();
         result = updateDominoPartCounts();
         if (result !== INVALID_ARRANGEMENT) {
             updateEqualsRegions();
-            result = rule_canOnlyBePlacedByOneDomino(dominoes, silenced);
+            result = runUntilNoDefinitePlacements(dominoes, silenced);
         }
     }
     return result
+}
+
+const runUntilNoDefinitePlacements = () => {
+    let result = null;
+    do {
+        result = rule_canOnlyBePlacedByOneDomino(dominoes, true);
+    } while (!result?.possiblePlacements && result !== INVALID_ARRANGEMENT && canPlaceDomino());
+    return result;
 }
 
 getBoardCoords(board);
