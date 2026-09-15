@@ -242,11 +242,14 @@ const rule_canOnlyBePlacedByOneDomino = (dominoes, silenced = false) => {
                                 direction: validDirection,
                                 flipped: validFlipped
                             }
+
+
                             if (possibleDominoPlacements[`${i},${j}`]) {
                                 possibleDominoPlacements[`${i},${j}`].push(dominoEntry);
                             } else {
                                 possibleDominoPlacements[`${i},${j}`] = [dominoEntry];
                             }
+
                         }
                         // if (validCount > 1) {
                         //     indicesToRegion = JSON.parse(originalConditions);
@@ -319,189 +322,200 @@ const getOtherIndex = ([i, j], direction) => {
 // possibleDominoPlacements is an array of objects: [{ [row, col]: [{ domino: [num1, num2], direction: direction, flipped: boolean }] }]
 const lookAhead = (possibleDominoPlacements) => {
     // start from the area that has the least possibilities.
-    const objectToArray = Object.entries(possibleDominoPlacements).sort((a, b) => a[1].length - b[1].length);
-    const placementsByCell = [];
+    //const objectToArray = Object.entries(possibleDominoPlacements).sort((a, b) => a[1].length - b[1].length);
+    let leastOptionsPlacement = Object.entries(possibleDominoPlacements).reduce((least, current) => least[1].length <= current[1].length ? least : current);
     let stuffToPush = [];
     const originalValidIndices = new Set(validIndices);
     const originalFoundDominoes = [...foundDominoes];
     let validOption = null;
     const originalConditionsPointer = indicesToRegion;
     const originalRegionsPointer = regions;
-    for (let i = 0; i < objectToArray.length; ++i) {
-        // cellString is an array of "row, col" strings. The entries before the last have already been tried.
-        // options is an array of the option chosen at each prevoius cell.
 
-        const cellString = objectToArray[i][0];
-        const prevData = objectToArray[i][1];
+    // for (let i = 0; i < objectToArray.length; ++i) {
+    //     // cellString is an array of "row, col" strings. The entries before the last have already been tried.
+    //     // options is an array of the option chosen at each prevoius cell.
+
+    //     const cellString = objectToArray[i][0];
+    //     const prevData = objectToArray[i][1];
 
 
-        ({ indicesToRegion, regions } = structuredClone({ indicesToRegion: originalConditionsPointer, regions: originalRegionsPointer }));
-        validIndices = new Set(originalValidIndices);
-        foundDominoes = [...originalFoundDominoes]
-        let options = null;
-        if (prevData?.previous) {
-            for (const definitePlacement of prevData.foundPlacements) {
+    //     ({ indicesToRegion, regions } = structuredClone({ indicesToRegion: originalConditionsPointer, regions: originalRegionsPointer }));
+    //     validIndices = new Set(originalValidIndices);
+    //     foundDominoes = [...originalFoundDominoes]
+    //     let options = null;
+    //     if (prevData?.previous) {
+    //         for (const definitePlacement of prevData.foundPlacements) {
 
-                // need to make a function which wraps this stuff together.
-                foundDominoes.push(definitePlacement.domino);
-                const otherIndex = getOtherIndex(definitePlacement.area, definitePlacement.direction)
-                validIndices.delete(`${definitePlacement.area[0]},${definitePlacement.area[1]}`);
-                validIndices.delete(`${otherIndex[0]},${otherIndex[1]}`);
-                adjustConditions([{ cell: definitePlacement.area, value: definitePlacement.domino[definitePlacement.flipped ? 1 : 0] }, { cell: otherIndex, value: definitePlacement.domino[definitePlacement.flipped ? 0 : 1] }]);
+    //             // need to make a function which wraps this stuff together.
+    //             foundDominoes.push(definitePlacement.domino);
+    //             const otherIndex = getOtherIndex(definitePlacement.area, definitePlacement.direction)
+    //             validIndices.delete(`${definitePlacement.area[0]},${definitePlacement.area[1]}`);
+    //             validIndices.delete(`${otherIndex[0]},${otherIndex[1]}`);
+    //             adjustConditions([{ cell: definitePlacement.area, value: definitePlacement.domino[definitePlacement.flipped ? 1 : 0] }, { cell: otherIndex, value: definitePlacement.domino[definitePlacement.flipped ? 0 : 1] }]);
 
-            }
-            options = prevData.possiblePlacements;
-            for (let j = 0; j < prevData.previous.length; ++j) {
-                // something isn't clear about whther cellString[j] is an array or a string
-                const otherIndex = getOtherIndex(prevData.previous[j].cell, prevData.previous[j].direction);
-                adjustConditions([{ cell: prevData.previous[j].cell, value: prevData.previous[j].domino[prevData.previous[j].flipped ? 1 : 0] }, { cell: otherIndex, value: prevData.previous[j].domino[prevData.previous[j].flipped ? 0 : 1] }]);
-                validIndices.delete(`${prevData.previous[j].cell[0]},${prevData.previous[j].cell[1]}`)
-                validIndices.delete(`${otherIndex[0]},${otherIndex[1]}`)
-                foundDominoes.push(prevData.previous[j].domino)
-            }
+    //         }
+    //         options = prevData.possiblePlacements;
+    //         for (let j = 0; j < prevData.previous.length; ++j) {
+    //             // something isn't clear about whther cellString[j] is an array or a string
+    //             const otherIndex = getOtherIndex(prevData.previous[j].cell, prevData.previous[j].direction);
+    //             adjustConditions([{ cell: prevData.previous[j].cell, value: prevData.previous[j].domino[prevData.previous[j].flipped ? 1 : 0] }, { cell: otherIndex, value: prevData.previous[j].domino[prevData.previous[j].flipped ? 0 : 1] }]);
+    //             validIndices.delete(`${prevData.previous[j].cell[0]},${prevData.previous[j].cell[1]}`)
+    //             validIndices.delete(`${otherIndex[0]},${otherIndex[1]}`)
+    //             foundDominoes.push(prevData.previous[j].domino)
+    //         }
+    //     }
+    //     else {
+    //         options = prevData;
+    //     }
+
+
+    //     const { savedIndicesToRegion, savedRegions } = structuredClone({ savedIndicesToRegion: indicesToRegion, savedRegions: regions });
+    //     const savedValidIndices = new Set(validIndices);
+    //     const savedFoundDominoes = [...foundDominoes]
+
+    //     const [row, col] = cellString.split(',');
+    //     const cell = [Number(row), Number(col)];
+    //     let lastValidPlacement = null;
+    //     let validPlacementCount = 0;
+
+
+    const options = [...leastOptionsPlacement];
+
+    // keep a tree structure.
+    // for the root node, if you have the case that only one is a valid option, then place that domino down.
+    // for all child nodes, if you remove all nodes under some parent, then disqualify that parent.
+    // propagate that result up.
+
+    //const vertices = [...leastOptionsPlacement];
+
+    class TreeNode {
+        constructor(value, parent = null) {
+            this.value = value;
+            this.parent = parent;
+            this.children = [];
+            this.invalid = false;
         }
-        else {
-            options = prevData;
-        }
-
-
-        const { savedIndicesToRegion, savedRegions } = structuredClone({ savedIndicesToRegion: indicesToRegion, savedRegions: regions });
-        const savedValidIndices = new Set(validIndices);
-        const savedFoundDominoes = [...foundDominoes]
-
-        const [row, col] = cellString.split(',');
-        const cell = [Number(row), Number(col)];
-        let lastValidPlacement = null;
-        let validPlacementCount = 0;
-
-        for (const option of options) {
-
-            ({ indicesToRegion, regions } = structuredClone({ indicesToRegion: savedIndicesToRegion, regions: savedRegions }));
-            validIndices = new Set(savedValidIndices);
-            foundDominoes = [...savedFoundDominoes];
-
-            const otherIndices = getOtherIndex(cell, option.direction);
-            adjustConditions([{ cell: cell, value: option.domino[option.flipped ? 1 : 0] }, { cell: otherIndices, value: option.domino[option.flipped ? 0 : 1] }]);
-            validIndices.delete(cellString)
-            validIndices.delete(`${otherIndices[0]},${otherIndices[1]}`);
-            foundDominoes.push(option.domino);
-
-            let result = runRules(true) // if any of the rules fail, then this option must not be possible
-            if (result === INVALID_ARRANGEMENT)
-                continue;
-
-            if (result?.foundPlacements) {
-                if (!canPlaceDomino()) {
-                    if (prevData?.previous) {
-                        console.log(`${prevData.previous.length} depth search performed`);
-                        console.dir(prevData.previous, { depth: null });
-                        console.dir(prevData.foundPlacements, { depth: null });
-                    }
-                    const dominoEntry = {
-                        area: cell,
-                        domino: option.domino,
-                        direction: option.direction,
-                        flipped: option.flipped
-                    }
-                    return { foundPlacements: [dominoEntry, ...result?.foundPlacements] };
-                }
-                validOption = option;
-                // if (prevData?.previous)
-                //     (definitePlacements[cellString] ??= []).push({ previous: [...prevData.previous, { cell, ...option }], foundPlacements: result?.foundPlacements });
-                // else
-                //     (definitePlacements[cellString] ??= []).push({ previous: [{ cell, ...option }], foundPlacements: result?.foundPlacements });
-            }
-            // else if (result?.possiblePlacements) {
-            //     validOption = option;
-            //     if (prevData?.previous)
-            //         (possiblePlacements[cellString] ??= []).push({ previous: [...prevData.previous, { cell, ...option }], possiblePlacements: result?.possiblePlacements });
-            //     else
-            //         (possiblePlacements[cellString] ??= []).push({ previous: [{ cell, ...option }], possiblePlacements: result?.possiblePlacements });
-            // }
-
-            placementsByCell[cellString] ??= {};
-            stuffToPush = [];
-            //const foundPlacementsArray = Object.entries(result.foundPlacements);
-            //const possiblePlacementsArray = Object.entries(result.possiblePlacements).sort((a, b) => a[1].length - b[1].length)
-
-            // if only one has definite placements, then the idea is that you should put down the definite placements
-            // and rerun it to find more definite placements. But it would be better if when you receive the definite placements,
-            // it's guaranteed that there are no more such placements.
-            if (result !== INVALID_ARRANGEMENT) {
-                lastValidPlacement = result;
-                ++validPlacementCount;
-            }
-
-            // THIS IS SO INEFFICIENT
-            if (prevData?.previous)
-                //placementsByCell[cellString].push({ previous: [...prevData?.previous, { cell, ...option }], possiblePlacements: result.possiblePlacements, foundPlacements: result.foundPlacements });
-                for (const [cellString, entries] of Object.entries(result?.possiblePlacements).sort((a, b) => a[1].length - b[1].length))
-                    stuffToPush.push([cellString, { previous: [...prevData?.previous, { cell, ...option }], possiblePlacements: entries, foundPlacements: result?.foundPlacements }]);
-            else
-                //placementsByCell[cellString].push({ previous: [{ cell, ...option }], possiblePlacements: result.possiblePlacements, foundPlacements: result.foundPlacements });
-                for (const [cellString, entries] of Object.entries(result?.possiblePlacements).sort((a, b) => a[1].length - b[1].length))
-                    stuffToPush.push([cellString, { previous: [{ cell, ...option }], possiblePlacements: entries, foundPlacements: result?.foundPlacements }]);
-
-            // this is done at the start now.
-            //indicesToRegion = JSON.parse(originalConditions);
-            // validIndices = new Set(originalValidIndices);
-            // foundDominoes = [...originalFoundDominoes];
-        }
-
-        indicesToRegion = originalConditionsPointer;
-        regions = originalRegionsPointer;
-        validIndices = new Set(originalValidIndices);
-        foundDominoes = [...originalFoundDominoes];
-
-        // if you've previously placed a domino, then this doesn't work. 
-        // so do you just check for that? 
-        // in the case of checking possibilities of two dominoes, you would need to check that only one of all possibilites works (then you can place it).
-        // number of possibilities = ?
-        if (validPlacementCount === 1 && !prevData?.previous) {
-            const dominoEntry = {
-                area: cell,
-                domino: validOption.domino,
-                direction: validOption.direction,
-                flipped: validOption.flipped
-            }
-
-            console.log(`Added domino because lookahead validPlacementCount equals one for all options at this cell: ${cellString}`)
-            console.dir(dominoEntry, { depth: null });
-            foundDominoes.push(validOption.domino);
-            const otherIndices = getOtherIndex(cell, validOption.direction);
-            validIndices.delete(cellString);
-            validIndices.delete(`${otherIndices[0]},${otherIndices[1]}`);
-            adjustConditions([{ cell: cell, value: validOption.domino[validOption.flipped ? 1 : 0] }, { cell: otherIndices, value: validOption.domino[validOption.flipped ? 0 : 1] }]);
-
-            if (lastValidPlacement.foundPlacements.length > 0) {
-                console.log("This domino found through rule_canOnlyBePlacedByOneDomino from placing the only valid domino")
-                console.dir(lastValidPlacement.foundPlacements, { depth: null });
-                for (const dominoEntry of lastValidPlacement.foundPlacements) {
-                    foundDominoes.push(dominoEntry.domino);
-                    const otherIndex = getOtherIndex(dominoEntry.area, dominoEntry.direction)
-                    validIndices.delete(`${dominoEntry.area[0]},${dominoEntry.area[1]}`);
-                    validIndices.delete(`${otherIndex[0]},${otherIndex[1]}`);
-                    adjustConditions([{ cell: dominoEntry.area, value: dominoEntry.domino[dominoEntry.flipped ? 1 : 0] }, { cell: otherIndex, value: dominoEntry.domino[dominoEntry.flipped ? 0 : 1] }]);
-                }
-            }
-
-            const result = { foundPlacements: [dominoEntry, ...lastValidPlacement.foundPlacements] }
-            return result;
-
-        }
-        else if (validPlacementCount === 0)
-            // then if this was called recursively, you know that one scenario that you were considering is incorrect.
-            // return INVALID_ARRANGEMENT;
-            // then this case isn't possible.
-            continue;
-
-        // instead of sorting them here, could just push them in a way which maintains sorted order?
-        //const toAppend = Object.entries(placementsByCell).sort((a, b) => a[1].possiblePlacements?.length - b[1].possiblePlacements?.length);
-        // ALSO NEED TO SORT THE DEFINITE PLACEMENTS
-
-        stuffToPush.sort((a, b) => a[1].possiblePlacements?.length - b[1].possiblePlacements?.length);
-        objectToArray.push(...stuffToPush);
     }
+    const numberRootNodes = leastOptionsPlacement.length;
+    const roots = leastOptionsPlacement.map(placement => new TreeNode(placement));
+
+    for (let i = 0; i < roots.length; ++i) {
+        let cell = roots[i].value[0].split(',');
+        cell = [Number(cell[0]), Number(cell[1])];
+        let option = roots[i].value[1];
+
+        ({ indicesToRegion, regions } = structuredClone({ indicesToRegion: savedIndicesToRegion, regions: savedRegions }));
+        validIndices = new Set(savedValidIndices);
+        foundDominoes = [...savedFoundDominoes];
+
+        const otherIndices = getOtherIndex(cell, option.direction);
+        adjustConditions([{ cell: cell, value: option.domino[option.flipped ? 1 : 0] }, { cell: otherIndices, value: option.domino[option.flipped ? 0 : 1] }]);
+        validIndices.delete(cellString)
+        validIndices.delete(`${otherIndices[0]},${otherIndices[1]}`);
+        foundDominoes.push(option.domino);
+
+        let result = runRules(true) // if any of the rules fail, then this option must not be possible
+        if (result === INVALID_ARRANGEMENT) {
+            roots[i].invalid = true;
+            // if it has a parent
+            if (roots[i].parent && roots[i].parent.every(child => child.invalid)) {
+                roots[i].parent.invalid = true;
+            }
+            // NEED TO PROPOGATE THIS
+            // if it has no parent (i.e, it is a root node)
+            else if (!roots[i].parent) {
+                let invalidRootCount = 0;
+                for (let j = 0; j < numberRootNodes; ++j) {
+                    if (roots[j].invalid)
+                        invalidRootCount++;
+                }
+                if (invalidRootCount === numberRootNodes - 1) {
+                    // then place down the cell from the only valid option.
+
+                }
+            }
+            continue;
+        }
+
+        if (result?.foundPlacements) {
+            if (!canPlaceDomino()) {
+                const dominoEntry = {
+                    area: cell,
+                    domino: option.domino,
+                    direction: option.direction,
+                    flipped: option.flipped
+                }
+                return { foundPlacements: [dominoEntry, ...result?.foundPlacements] };
+            }
+            validOption = option;
+        }
+
+
+        // if only one has definite placements, then the idea is that you should put down the definite placements
+        // and rerun it to find more definite placements. But it would be better if when you receive the definite placements,
+        // it's guaranteed that there are no more such placements.
+        if (result !== INVALID_ARRANGEMENT) {
+            lastValidPlacement = result;
+            ++validPlacementCount;
+        }
+
+        leastOptionsPlacement = Object.entries(result?.possiblePlacements).reduce((least, current) => current[1].length < least[1].length ? current : least);
+        roots[i].children = leastOptionsPlacement.map(placement => new TreeNode(placement));
+    }
+
+    indicesToRegion = originalConditionsPointer;
+    regions = originalRegionsPointer;
+    validIndices = new Set(originalValidIndices);
+    foundDominoes = [...originalFoundDominoes];
+
+    // if you've previously placed a domino, then this doesn't work. 
+    // so do you just check for that? 
+    // in the case of checking possibilities of two dominoes, you would need to check that only one of all possibilites works (then you can place it).
+    // number of possibilities = ?
+    if (validPlacementCount === 1 && !prevData?.previous) {
+        const dominoEntry = {
+            area: cell,
+            domino: validOption.domino,
+            direction: validOption.direction,
+            flipped: validOption.flipped
+        }
+
+        console.log(`Added domino because lookahead validPlacementCount equals one for all options at this cell: ${cellString}`)
+        console.dir(dominoEntry, { depth: null });
+        foundDominoes.push(validOption.domino);
+        const otherIndices = getOtherIndex(cell, validOption.direction);
+        validIndices.delete(cellString);
+        validIndices.delete(`${otherIndices[0]},${otherIndices[1]}`);
+        adjustConditions([{ cell: cell, value: validOption.domino[validOption.flipped ? 1 : 0] }, { cell: otherIndices, value: validOption.domino[validOption.flipped ? 0 : 1] }]);
+
+        if (lastValidPlacement.foundPlacements.length > 0) {
+            console.log("This domino found through rule_canOnlyBePlacedByOneDomino from placing the only valid domino")
+            console.dir(lastValidPlacement.foundPlacements, { depth: null });
+            for (const dominoEntry of lastValidPlacement.foundPlacements) {
+                foundDominoes.push(dominoEntry.domino);
+                const otherIndex = getOtherIndex(dominoEntry.area, dominoEntry.direction)
+                validIndices.delete(`${dominoEntry.area[0]},${dominoEntry.area[1]}`);
+                validIndices.delete(`${otherIndex[0]},${otherIndex[1]}`);
+                adjustConditions([{ cell: dominoEntry.area, value: dominoEntry.domino[dominoEntry.flipped ? 1 : 0] }, { cell: otherIndex, value: dominoEntry.domino[dominoEntry.flipped ? 0 : 1] }]);
+            }
+        }
+
+        const result = { foundPlacements: [dominoEntry, ...lastValidPlacement.foundPlacements] }
+        return result;
+
+    }
+    else if (validPlacementCount === 0)
+        // then if this was called recursively, you know that one scenario that you were considering is incorrect.
+        // return INVALID_ARRANGEMENT;
+        // then this case isn't possible.
+        continue;
+
+    // instead of sorting them here, could just push them in a way which maintains sorted order?
+    //const toAppend = Object.entries(placementsByCell).sort((a, b) => a[1].possiblePlacements?.length - b[1].possiblePlacements?.length);
+    // ALSO NEED TO SORT THE DEFINITE PLACEMENTS
+
+    stuffToPush.sort((a, b) => a[1].possiblePlacements?.length - b[1].possiblePlacements?.length);
+    objectToArray.push(...stuffToPush);
 
 }
 
