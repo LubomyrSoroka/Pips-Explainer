@@ -365,6 +365,8 @@ const lookAhead = (leastOptionsPlacement) => {
 
         let currentNode = roots[i];
 
+        let depth = 0;
+
         do {
             let optionToModify = currentNode.value;
             const otherIndices = getOtherIndex(optionToModify.cell, optionToModify.direction);
@@ -373,6 +375,7 @@ const lookAhead = (leastOptionsPlacement) => {
             validIndices.delete(`${otherIndices[0]},${otherIndices[1]}`);
             foundDominoes.push(optionToModify.domino);
             currentNode = currentNode.parent;
+            ++depth;
         } while (currentNode);
 
         let result = runRules(true) // if any of the rules fail, then this option must not be possible
@@ -412,7 +415,8 @@ const lookAhead = (leastOptionsPlacement) => {
                     flipped: validOption.flipped
                 }
 
-                console.log(`Added domino because all other root nodes are invalid at this cell: ${cellString}`)
+
+                console.log(`Added domino because all other root nodes are invalid at this cell: ${cellString} (through performing depth ${depth} search)`)
                 console.dir(dominoEntry, { depth: null });
                 foundDominoes.push(validOption.domino);
                 const otherIndices = getOtherIndex(validOption.cell, validOption.direction);
@@ -443,10 +447,12 @@ const lookAhead = (leastOptionsPlacement) => {
 
                 console.log(`After trying the following placements: ${JSON.stringify(previousPlacements, null, 2)}`);
 
+                console.log(`found Placements ${JSON.stringify(result?.foundPlacements, null, 2)}`)
                 return { foundPlacements: [...result?.foundPlacements] };
             }
         }
 
+        // this isn't tracking of the result.foundPlacements. 
         leastOptionsPlacement = result?.possiblePlacements;
         roots[i].children = leastOptionsPlacement.map(placement => new TreeNode(placement));
         roots[i].children.forEach(child => { child.parent = roots[i] });
@@ -800,8 +806,8 @@ const isOutOfBounds = (row, col) => {
 // Aug 24, 2026 easy // no looking ahead
 // Aug 17, 2026 Medium
 
-const date = new Date('2026-08-21T00:00:00Z'); // leave the part after T to ensure that this is in UTC. That way when converting the date to string, it doesn't change based on your timezone.
-const difficulty = HARD;
+const date = new Date('2026-08-17T00:00:00Z'); // leave the part after T to ensure that this is in UTC. That way when converting the date to string, it doesn't change based on your timezone.
+const difficulty = MEDIUM;
 const allData = await fetch(`https://www.nytimes.com/svc/pips/v1/${date.toISOString().split('T')[0]}.json`, {
     headers: {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/[IP_ADDRESS] Safari/537.36'
@@ -837,7 +843,10 @@ const runUntilNoDefinitePlacements = (silenced) => {
     let result = null;
     do {
         result = rule_canOnlyBePlacedByOneDomino(dominoes, silenced);
-    } while (!result?.possiblePlacements && result !== INVALID_ARRANGEMENT && canPlaceDomino());
+        // What is this even doing result.possiblePlacements will always be tree (empty array is true in js).
+        //} while (!result?.possiblePlacements && result !== INVALID_ARRANGEMENT && canPlaceDomino());
+        // keep doing it while the number of found placements is greater than 0
+    } while (result !== INVALID_ARRANGEMENT && result.foundPlacements.length > 0 && canPlaceDomino());
     return result;
 }
 
@@ -869,7 +878,7 @@ while (canPlaceDomino() && iterations++ < MAX_ITERATIONS) {
         break;
 }
 
-console.dir(result, { depth: null });
+//console.dir(result, { depth: null });
 if (!canPlaceDomino())
     console.log("puzzle solved?")
 
