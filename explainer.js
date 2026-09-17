@@ -55,7 +55,7 @@
 
 // board is an array of objects. Each object contains the following:
 // indices: An array of coordinate pairs [row, col].
-// type: either sum, less, greater, equals, unequals or empty
+// type: either sum, less, greater, equals, unequal or empty
 // target: the target value in the sum, less or greater cases. 
 let indicesToRegion = {};
 let validIndices = new Set();
@@ -336,6 +336,8 @@ const getOtherIndex = ([i, j], direction) => {
 
 // leastOptionsPlacement is an array of Domino Objects
 
+let solutionCount = 1;
+
 const lookAhead = (leastOptionsPlacement) => {
     const originalValidIndices = new Set(validIndices);
     const originalFoundDominoes = [...foundDominoes];
@@ -355,6 +357,11 @@ const lookAhead = (leastOptionsPlacement) => {
     const roots = leastOptionsPlacement.map(placement => new TreeNode(placement));
 
     for (let i = 0; i < roots.length; ++i) {
+
+        let currentNode = roots[i];
+        if(currentNode.invalid)
+            continue;
+
         let cell = roots[i].value.cell;
         const cellString = `${cell[0]},${cell[1]}`;
 
@@ -363,7 +370,6 @@ const lookAhead = (leastOptionsPlacement) => {
         validIndices = new Set(originalValidIndices);
         foundDominoes = [...originalFoundDominoes];
 
-        let currentNode = roots[i];
 
         let depth = 0;
 
@@ -377,6 +383,9 @@ const lookAhead = (leastOptionsPlacement) => {
             currentNode = currentNode.parent;
             ++depth;
         } while (currentNode);
+
+        // often, this just adds the same thing to both sides of the tree (since either placement results in the same next placement with min possiblities)
+        // I think I could optimize this...
 
         let result = runRules(true) // if any of the rules fail, then this option must not be possible
         if (result === INVALID_ARRANGEMENT) {
@@ -434,21 +443,20 @@ const lookAhead = (leastOptionsPlacement) => {
         }
 
         else if (result?.foundPlacements) {
+            // if this happens, then you've found one of the possible solutions
             if (!canPlaceDomino()) {
-
                 let currentNode = roots[i];
-
-
                 const previousPlacements = [];
                 do {
                     previousPlacements.push(currentNode.value);
                     currentNode = currentNode.parent;
                 } while (currentNode);
 
-                console.log(`After trying the following placements: ${JSON.stringify(previousPlacements, null, 2)}`);
+                console.log(`Solution ${solutionCount++} After trying the following placements: ${JSON.stringify(previousPlacements, null, 2)}`);
 
                 console.log(`found Placements ${JSON.stringify(result?.foundPlacements, null, 2)}`)
-                return { foundPlacements: [...result?.foundPlacements] };
+                // uncomment this to return only the first solution.
+                //return { foundPlacements: [...result?.foundPlacements] };
             }
         }
 
@@ -457,8 +465,8 @@ const lookAhead = (leastOptionsPlacement) => {
         roots[i].children = leastOptionsPlacement.map(placement => new TreeNode(placement));
         roots[i].children.forEach(child => { child.parent = roots[i] });
         roots.push(...roots[i].children);
-
     }
+    console.log(`${solutionCount} solutions found.`);
 }
 
 
@@ -675,6 +683,10 @@ const updateSumMultipleOfSixAndZeroes = () => {
                 }
             }
         }
+        if(entry.type === 'greater'){
+            // convert >5 to 6 if one cell, >11 to 12 (or two 6's if two cells), etc.
+
+        }
     }
 }
 
@@ -843,7 +855,7 @@ const runUntilNoDefinitePlacements = (silenced) => {
     let result = null;
     do {
         result = rule_canOnlyBePlacedByOneDomino(dominoes, silenced);
-        // What is this even doing result.possiblePlacements will always be tree (empty array is true in js).
+        // What is this even doing result.possiblePlacements will always be true (empty array is true in js).
         //} while (!result?.possiblePlacements && result !== INVALID_ARRANGEMENT && canPlaceDomino());
         // keep doing it while the number of found placements is greater than 0
     } while (result !== INVALID_ARRANGEMENT && result.foundPlacements.length > 0 && canPlaceDomino());
