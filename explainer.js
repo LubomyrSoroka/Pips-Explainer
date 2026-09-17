@@ -81,7 +81,7 @@ const getBoardCoords = (board) => {
     board.forEach((entry) => {
         previousIndex = null;
         entry.indices.forEach((index) => {
-            if (entry.type === 'unequals') {
+            if (entry.type === 'unequal') {
                 entry.type = 'set';
                 entry.target = new Set([0, 1, 2, 3, 4, 5, 6]);
             }
@@ -127,6 +127,8 @@ const INVALID_ARRANGEMENT = 'Invalid arrangement'
 const EASY = 'easy';
 const MEDIUM = 'medium';
 const HARD = 'hard';
+
+const CONNECTED = 'connected';
 
 const canPlaceDomino = () => {
     return dominoes.length > foundDominoes.length;
@@ -193,18 +195,23 @@ const rule_canOnlyBePlacedByOneDomino = (dominoes, silenced = false) => {
             // need to make a copy this way, since you want a deep copy
             //const originalConditions = JSON.stringify(indicesToRegion);
             let validDirections = [DOWN, UP, LEFT, RIGHT];
+
             validDirections = validDirections.filter(direction => {
                 if (direction === DOWN) {
-                    return !isOutOfBounds(i + 1, j);
+                    return !isOutOfBounds(i + 1, j) && !createsOddCountArea([i, j], DOWN);
+                    //return !isOutOfBounds(i + 1, j);
                 }
                 if (direction === UP) {
-                    return !isOutOfBounds(i - 1, j);
+                    return !isOutOfBounds(i - 1, j) && !createsOddCountArea([i, j], UP);
+                    //return !isOutOfBounds(i - 1, j);
                 }
                 if (direction === LEFT) {
-                    return !isOutOfBounds(i, j - 1);
+                    return !isOutOfBounds(i, j - 1) && !createsOddCountArea([i, j], LEFT);
+                    //return !isOutOfBounds(i, j - 1);
                 }
                 if (direction === RIGHT) {
-                    return !isOutOfBounds(i, j + 1);
+                    return !isOutOfBounds(i, j + 1) && !createsOddCountArea([i, j], RIGHT);
+                    //return !isOutOfBounds(i, j + 1);
                 }
             })
             // I'm not entirely sure about this. The original idea was that this rule should only apply to corners or to places where only one cell could fit.
@@ -330,69 +337,11 @@ const getOtherIndex = ([i, j], direction) => {
 // leastOptionsPlacement is an array of Domino Objects
 
 const lookAhead = (leastOptionsPlacement) => {
-    // start from the area that has the least possibilities.
-    //const objectToArray = Object.entries(possibleDominoPlacements).sort((a, b) => a[1].length - b[1].length);
-    //let leastOptionsPlacement = Object.entries(possibleDominoPlacements).reduce((least, current) => least[1].length < current[0][1].length ? [...least] : least[1].length === current[0][1].length ? [...least, current] : [current], [possibleDominoPlacements[0]]);
     const originalValidIndices = new Set(validIndices);
     const originalFoundDominoes = [...foundDominoes];
     let validOption = null;
     const originalConditionsPointer = indicesToRegion;
     const originalRegionsPointer = regions;
-
-    // for (let i = 0; i < objectToArray.length; ++i) {
-    //     // cellString is an array of "row, col" strings. The entries before the last have already been tried.
-    //     // options is an array of the option chosen at each prevoius cell.
-
-    //     const cellString = objectToArray[i][0];
-    //     const prevData = objectToArray[i][1];
-
-
-    //     ({ indicesToRegion, regions } = structuredClone({ indicesToRegion: originalConditionsPointer, regions: originalRegionsPointer }));
-    //     validIndices = new Set(originalValidIndices);
-    //     foundDominoes = [...originalFoundDominoes]
-    //     let options = null;
-    //     if (prevData?.previous) {
-    //         for (const definitePlacement of prevData.foundPlacements) {
-
-    //             // need to make a function which wraps this stuff together.
-    //             foundDominoes.push(definitePlacement.domino);
-    //             const otherIndex = getOtherIndex(definitePlacement.area, definitePlacement.direction)
-    //             validIndices.delete(`${definitePlacement.area[0]},${definitePlacement.area[1]}`);
-    //             validIndices.delete(`${otherIndex[0]},${otherIndex[1]}`);
-    //             adjustConditions([{ cell: definitePlacement.area, value: definitePlacement.domino[definitePlacement.flipped ? 1 : 0] }, { cell: otherIndex, value: definitePlacement.domino[definitePlacement.flipped ? 0 : 1] }]);
-
-    //         }
-    //         options = prevData.possiblePlacements;
-    //         for (let j = 0; j < prevData.previous.length; ++j) {
-    //             // something isn't clear about whther cellString[j] is an array or a string
-    //             const otherIndex = getOtherIndex(prevData.previous[j].cell, prevData.previous[j].direction);
-    //             adjustConditions([{ cell: prevData.previous[j].cell, value: prevData.previous[j].domino[prevData.previous[j].flipped ? 1 : 0] }, { cell: otherIndex, value: prevData.previous[j].domino[prevData.previous[j].flipped ? 0 : 1] }]);
-    //             validIndices.delete(`${prevData.previous[j].cell[0]},${prevData.previous[j].cell[1]}`)
-    //             validIndices.delete(`${otherIndex[0]},${otherIndex[1]}`)
-    //             foundDominoes.push(prevData.previous[j].domino)
-    //         }
-    //     }
-    //     else {
-    //         options = prevData;
-    //     }
-
-
-    //     const { savedIndicesToRegion, savedRegions } = structuredClone({ savedIndicesToRegion: indicesToRegion, savedRegions: regions });
-    //     const savedValidIndices = new Set(validIndices);
-    //     const savedFoundDominoes = [...foundDominoes]
-
-    //     const [row, col] = cellString.split(',');
-    //     const cell = [Number(row), Number(col)];
-    //     let lastValidPlacement = null;
-    //     let validPlacementCount = 0;
-
-
-    // keep a tree structure.
-    // for the root node, if you have the case that only one is a valid option, then place that domino down.
-    // for all child nodes, if you remove all nodes under some parent, then disqualify that parent.
-    // propagate that result up.
-
-    //const vertices = [...leastOptionsPlacement];
 
     class TreeNode {
         constructor(value, parent = null) {
@@ -409,7 +358,6 @@ const lookAhead = (leastOptionsPlacement) => {
         let cell = roots[i].value.cell;
         const cellString = `${cell[0]},${cell[1]}`;
 
-        let option = roots[i].value;
 
         ({ indicesToRegion, regions } = structuredClone({ indicesToRegion: originalConditionsPointer, regions: originalRegionsPointer }));
         validIndices = new Set(originalValidIndices);
@@ -418,7 +366,7 @@ const lookAhead = (leastOptionsPlacement) => {
         let currentNode = roots[i];
 
         do {
-            let optionToModify = roots[i].value;
+            let optionToModify = currentNode.value;
             const otherIndices = getOtherIndex(optionToModify.cell, optionToModify.direction);
             adjustConditions([{ cell: optionToModify.cell, value: optionToModify.domino[optionToModify.flipped ? 1 : 0] }, { cell: otherIndices, value: optionToModify.domino[optionToModify.flipped ? 0 : 1] }]);
             validIndices.delete(`${optionToModify.cell[0]},${optionToModify.cell[1]}`);
@@ -458,7 +406,7 @@ const lookAhead = (leastOptionsPlacement) => {
                 }
 
                 const dominoEntry = {
-                    area: cell,
+                    area: validOption.cell,
                     domino: validOption.domino,
                     direction: validOption.direction,
                     flipped: validOption.flipped
@@ -467,24 +415,15 @@ const lookAhead = (leastOptionsPlacement) => {
                 console.log(`Added domino because all other root nodes are invalid at this cell: ${cellString}`)
                 console.dir(dominoEntry, { depth: null });
                 foundDominoes.push(validOption.domino);
-                const otherIndices = getOtherIndex(cell, validOption.direction);
-                validIndices.delete(cellString);
+                const otherIndices = getOtherIndex(validOption.cell, validOption.direction);
+                const validOptionAreaString = `${validOption.cell[0]},${validOption.cell[1]}`;
+                validIndices.delete(validOptionAreaString);
                 validIndices.delete(`${otherIndices[0]},${otherIndices[1]}`);
-                adjustConditions([{ cell: cell, value: validOption.domino[validOption.flipped ? 1 : 0] }, { cell: otherIndices, value: validOption.domino[validOption.flipped ? 0 : 1] }]);
 
-                if (lastValidPlacement.foundPlacements.length > 0) {
-                    console.log("This domino found through rule_canOnlyBePlacedByOneDomino from placing the only valid domino")
-                    console.dir(lastValidPlacement.foundPlacements, { depth: null });
-                    for (const dominoEntry of lastValidPlacement.foundPlacements) {
-                        foundDominoes.push(dominoEntry.domino);
-                        const otherIndex = getOtherIndex(dominoEntry.area, dominoEntry.direction)
-                        validIndices.delete(`${dominoEntry.area[0]},${dominoEntry.area[1]}`);
-                        validIndices.delete(`${otherIndex[0]},${otherIndex[1]}`);
-                        adjustConditions([{ cell: dominoEntry.area, value: dominoEntry.domino[dominoEntry.flipped ? 1 : 0] }, { cell: otherIndex, value: dominoEntry.domino[dominoEntry.flipped ? 0 : 1] }]);
-                    }
-                }
+                // is this to the original indices pointer?
+                adjustConditions([{ cell: validOption.cell, value: validOption.domino[validOption.flipped ? 1 : 0] }, { cell: otherIndices, value: validOption.domino[validOption.flipped ? 0 : 1] }]);
 
-                const result = { foundPlacements: [dominoEntry, ...lastValidPlacement.foundPlacements] }
+                const result = { foundPlacements: [dominoEntry] }
                 return result;
             }
             continue;
@@ -492,24 +431,20 @@ const lookAhead = (leastOptionsPlacement) => {
 
         else if (result?.foundPlacements) {
             if (!canPlaceDomino()) {
-                const dominoEntry = {
-                    area: cell,
-                    domino: option.domino,
-                    direction: option.direction,
-                    flipped: option.flipped
-                }
-                return { foundPlacements: [dominoEntry, ...result?.foundPlacements] };
+
+                let currentNode = roots[i];
+
+
+                const previousPlacements = [];
+                do {
+                    previousPlacements.push(currentNode.value);
+                    currentNode = currentNode.parent;
+                } while (currentNode);
+
+                console.log(`After trying the following placements: ${JSON.stringify(previousPlacements, null, 2)}`);
+
+                return { foundPlacements: [...result?.foundPlacements] };
             }
-            validOption = option;
-        }
-
-
-        // if only one has definite placements, then the idea is that you should put down the definite placements
-        // and rerun it to find more definite placements. But it would be better if when you receive the definite placements,
-        // it's guaranteed that there are no more such placements.
-        else if (result !== INVALID_ARRANGEMENT) {
-            lastValidPlacement = result;
-            ++validPlacementCount;
         }
 
         leastOptionsPlacement = result?.possiblePlacements;
@@ -518,8 +453,6 @@ const lookAhead = (leastOptionsPlacement) => {
         roots.push(...roots[i].children);
 
     }
-
-
 }
 
 
@@ -556,6 +489,90 @@ const check = (row, col, domino, direction, flip) => {
     return false;
 }
 
+const createsOddCountArea = ([i, j], direction) => {
+    // need to temporarily remove all cells from valid indices.
+
+    const validIndicesCopy = new Set(validIndices);
+    validIndices.delete(`${i},${j}`);
+
+    const key = JSON.stringify([i, j]) + direction;
+
+    const [k, l] = getOtherIndex([i, j], direction);
+    validIndices.delete(`${k},${l}`);
+
+    let cellsToCheck = null;
+    switch (direction) {
+        case UP:
+            cellsToCheck = [[i + 1, j], [i, j - 1], [i, j + 1], [k - 1, l], [k, l - 1], [k, l + 1]];
+            break;
+        case DOWN:
+            cellsToCheck = [[i - 1, j], [i, j - 1], [i, j + 1], [k + 1, l], [k, l - 1], [k, l + 1]];
+            break;
+        case LEFT:
+            cellsToCheck = [[i, j + 1], [i + 1, j], [i - 1, j], [k, l - 1], [k + 1, l], [k - 1, l]];
+            break;
+        case RIGHT:
+            cellsToCheck = [[i, j - 1], [i + 1, j], [i - 1, j], [k, l + 1], [k + 1, l], [k - 1, l]];
+            break;
+    }
+    // to find the number of connected components, we need to run BFS from every node and keep track of the nodes that were visited. 
+    // if a bfs finds a node that was already visited, then those two components must be connected.
+    const visitedNodes = new Set();
+    const bfs = (startingNode) => {
+        const queue = [startingNode];
+        let i = 0;
+        visitedNodes.add(JSON.stringify(startingNode));
+        while (i < queue.length) {
+            const neighbours = getNeighbours(queue[i]);
+            for (const neighbour of neighbours) {
+                if (!visitedNodes.has(JSON.stringify(neighbour)))
+                    visitedNodes.add(JSON.stringify(neighbour));
+            }
+            queue.push(...neighbours)
+            ++i;
+        }
+        return queue.length;
+    }
+
+    const getNeighbours = ([i, j]) => {
+        const neighbours = [];
+
+        if (!isOutOfBounds(i, j + 1) && !visitedNodes.has(JSON.stringify([i, j + 1]))) {
+            neighbours.push([i, j + 1]);
+        }
+
+        if (!isOutOfBounds(i, j - 1) && !visitedNodes.has(JSON.stringify([i, j - 1]))) {
+            neighbours.push([i, j - 1]);
+        }
+
+        if (!isOutOfBounds(i + 1, j) && !visitedNodes.has(JSON.stringify([i + 1, j]))) {
+            neighbours.push([i + 1, j]);
+        }
+
+        if (!isOutOfBounds(i - 1, j) && !visitedNodes.has(JSON.stringify([i - 1, j]))) {
+            neighbours.push([i - 1, j]);
+        }
+        return neighbours;
+    }
+
+    for (const node of cellsToCheck) {
+        if (isOutOfBounds(node[0], node[1]) || visitedNodes.has(JSON.stringify(node)))
+            continue;
+
+        const result = bfs(node);
+        if (result !== CONNECTED && result % 2 === 1) {
+            // if this is a disconnected part
+            // and it has an odd number of cells, then this is an odd count area
+            validIndices = validIndicesCopy;
+            return true;
+        }
+    }
+    // if every node is next to a space with an even amount of cells, then this is not an odd count area
+    validIndices = validIndicesCopy;
+    //prevValuesOddCountAreas[key] = false;
+
+    return false;
+}
 
 const adjustConditions = (modifications) => {
     for (const modification of modifications) {
@@ -783,8 +800,8 @@ const isOutOfBounds = (row, col) => {
 // Aug 24, 2026 easy // no looking ahead
 // Aug 17, 2026 Medium
 
-const date = new Date('2026-08-17T00:00:00Z'); // leave the part after T to ensure that this is in UTC. That way when converting the date to string, it doesn't change based on your timezone.
-const difficulty = MEDIUM;
+const date = new Date('2026-08-21T00:00:00Z'); // leave the part after T to ensure that this is in UTC. That way when converting the date to string, it doesn't change based on your timezone.
+const difficulty = HARD;
 const allData = await fetch(`https://www.nytimes.com/svc/pips/v1/${date.toISOString().split('T')[0]}.json`, {
     headers: {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/[IP_ADDRESS] Safari/537.36'
@@ -804,22 +821,22 @@ const board = data.regions;
 
 
 const runRules = (silenced = false) => {
-    let result = runUntilNoDefinitePlacements(dominoes, silenced);
+    let result = runUntilNoDefinitePlacements(silenced);
     if (!result?.foundPlacements && result !== INVALID_ARRANGEMENT) {
         updateSumMultipleOfSixAndZeroes();
         result = updateDominoPartCounts();
         if (result !== INVALID_ARRANGEMENT) {
             updateEqualsRegions();
-            result = runUntilNoDefinitePlacements(dominoes, silenced);
+            result = runUntilNoDefinitePlacements(silenced);
         }
     }
     return result
 }
 
-const runUntilNoDefinitePlacements = () => {
+const runUntilNoDefinitePlacements = (silenced) => {
     let result = null;
     do {
-        result = rule_canOnlyBePlacedByOneDomino(dominoes, true);
+        result = rule_canOnlyBePlacedByOneDomino(dominoes, silenced);
     } while (!result?.possiblePlacements && result !== INVALID_ARRANGEMENT && canPlaceDomino());
     return result;
 }
