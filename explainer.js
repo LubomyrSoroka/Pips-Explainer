@@ -359,7 +359,7 @@ const lookAhead = (leastOptionsPlacement) => {
     for (let i = 0; i < roots.length; ++i) {
 
         let currentNode = roots[i];
-        if(currentNode.invalid)
+        if (currentNode.invalid)
             continue;
 
         let cell = roots[i].value.cell;
@@ -683,7 +683,7 @@ const updateSumMultipleOfSixAndZeroes = () => {
                 }
             }
         }
-        if(entry.type === 'greater'){
+        if (entry.type === 'greater') {
             // convert >5 to 6 if one cell, >11 to 12 (or two 6's if two cells), etc.
 
         }
@@ -835,7 +835,10 @@ const data = json[difficulty];
 
 
 const dominoes = data.dominoes;
-const board = data.regions;
+export const board = data.regions;
+
+console.dir(dominoes)
+console.dir(board, { depth: null })
 
 
 const runRules = (silenced = false) => {

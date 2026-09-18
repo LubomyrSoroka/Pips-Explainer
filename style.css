@@ -1,0 +1,73 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #f5f5f5;
+    font-family: Arial, sans-serif;
+}
+
+#board {
+    display: grid;
+    background: white;
+}
+
+.cell {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: rgb(219, 194, 185)
+}
+
+.innerCell {
+    background-color: rgb(225, 203, 197);
+    border-radius: 10px;
+    align-items: center;
+    justify-content: center;
+    width: 90%;
+    height: 90%;
+}
+
+/*
+ * Cage borders are drawn separately from the normal
+ * cell borders so that adjacent cells in the same cage
+ * don't have an internal cage line.
+ */
+.cell.cage-top {
+    border-top: 3px dashed #222;
+}
+
+.cell.cage-bottom {
+    border-bottom: 3px dashed #222;
+}
+
+.cell.cage-left {
+    border-left: 3px dashed #222;
+}
+
+.cell.cage-right {
+    border-right: 3px dashed #222;
+}
+
+.label {
+    position: absolute;
+    top: 3px;
+    left: 5px;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.target {
+    font-size: 18px;
+}
+
+.type-symbol {
+    font-size: 14px;
+    margin-left: 2px;
+}
