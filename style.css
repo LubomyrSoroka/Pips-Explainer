@@ -39,19 +39,48 @@ body {
  * cell borders so that adjacent cells in the same cage
  * don't have an internal cage line.
  */
-.cell.cage-top {
+.border-top{
+    position: absolute;
+    top: 0;
+    left: 10px;
+    right: 10px;
+    border-top: 5px dashed black;
+}
+.border-right{
+    position: absolute;
+    right: 0;
+    top: 10px;
+    bottom: 10px;
+    border-right: 5px dashed black;
+}
+.border-left{
+    position: absolute;
+    left: 0;
+    top: 10px;
+    bottom: 10px;
+    border-left: 5px dashed black;
+}
+.border-bottom{
+    position: absolute;
+    bottom: 0;
+    left: 10px;
+    right: 10px;
+    border-bottom: 5px dashed black;
+}
+
+.cage-top {
     border-top: 3px dashed #222;
 }
 
-.cell.cage-bottom {
+.cage-bottom {
     border-bottom: 3px dashed #222;
 }
 
-.cell.cage-left {
+.cage-left {
     border-left: 3px dashed #222;
 }
 
-.cell.cage-right {
+.cage-right {
     border-right: 3px dashed #222;
 }
 

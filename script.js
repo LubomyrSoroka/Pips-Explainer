@@ -82,24 +82,22 @@ function createBoard(board) {
 
             const innerCell = document.createElement('div');
             innerCell.classList.add('innerCell')
-            cell.appendChild(innerCell);
 
 
             const cageIndex = cageMap.get(key);
 
             if (cageIndex !== undefined) {
-                const cage = board[cageIndex];
 
-                // addCageBorders(
-                //     cell,
-                //     row,
-                //     col,
-                //     cage,
-                //     cageMap,
-                //     cageIndex
-                // );
+                addCageBorders(
+                    innerCell,
+                    row,
+                    col,
+                    cageMap,
+                    cageIndex
+                );
             }
 
+            cell.appendChild(innerCell);
             boardElement.appendChild(cell);
         }
     }
@@ -110,7 +108,6 @@ function addCageBorders(
     cell,
     row,
     col,
-    cage,
     cageMap,
     cageIndex
 ) {
@@ -120,26 +117,49 @@ function addCageBorders(
         left: `${row},${col - 1}`,
         right: `${row},${col + 1}`
     };
-
     /*
      * If the neighboring cell isn't in the same cage,
      * this cell is on the outside edge of the cage.
      */
 
     if (cageMap.get(neighbors.top) !== cageIndex) {
-        cell.classList.add('cage-top');
+        const borderElement = document.createElement('div');
+        borderElement.classList.add('border-top');
+        cell.appendChild(borderElement);
+        if(cageMap.get(neighbors.right) === cageIndex)
+            borderElement.style.right = 0
+        if(cageMap.get(neighbors.left) === cageIndex)
+            borderElement.style.left = 0
     }
 
     if (cageMap.get(neighbors.bottom) !== cageIndex) {
-        cell.classList.add('cage-bottom');
+        const borderElement = document.createElement('div');
+        borderElement.classList.add('border-bottom');
+        cell.appendChild(borderElement);
+        if(cageMap.get(neighbors.right) === cageIndex)
+            borderElement.style.right = 0
+        if(cageMap.get(neighbors.left) === cageIndex)
+            borderElement.style.left = 0
     }
 
     if (cageMap.get(neighbors.left) !== cageIndex) {
-        cell.classList.add('cage-left');
+        const borderElement = document.createElement('div');
+        borderElement.classList.add('border-left');
+        cell.appendChild(borderElement);
+        if(cageMap.get(neighbors.top) === cageIndex)
+            borderElement.style.top = 0
+        if(cageMap.get(neighbors.bottom) === cageIndex)
+            borderElement.style.bottom = 0
     }
 
     if (cageMap.get(neighbors.right) !== cageIndex) {
-        cell.classList.add('cage-right');
+        const borderElement = document.createElement('div');
+        borderElement.classList.add('border-right');
+        cell.appendChild(borderElement);
+        if(cageMap.get(neighbors.top) === cageIndex)
+            borderElement.style.top = 0
+        if(cageMap.get(neighbors.bottom) === cageIndex)
+            borderElement.style.bottom = 0
     }
 }
 
