@@ -85,6 +85,8 @@ function createBoard(board) {
 
             const cell = document.createElement('div');
             cell.classList.add('cell');
+            // instead of doing this, can you just "cut" all elements here and paste them in the reverse order?
+            cell.style.zIndex = 10 - col - row;
 
             const key = `${row},${col}`;
             const cageIndex = cageMap.get(key);
@@ -116,12 +118,18 @@ function createBoard(board) {
             if (badgeIndices.has(cageIndex) && badgeIndices.get(cageIndex)[0] === row && badgeIndices.get(cageIndex)[1] === col) {
                 const badge = document.createElement('div')
                 badge.classList.add('badge');
-                const boardElement = document.querySelector('#board')
-                boardElement.appendChild(badge);
-                const coords = cell.getBoundingClientRect();
-                const boardCoords = boardElement.getBoundingClientRect();
-                badge.style.right = `${boardCoords.right - coords.right}px`
-                badge.style.bottom = `${boardCoords.bottom - coords.bottom}px`;
+
+                cell.appendChild(badge);
+                badge.style.right = 0;
+                badge.style.bottom = 0;
+
+                // const boardElement = document.querySelector('#board')
+                // boardElement.appendChild(badge);
+                // const coords = cell.getBoundingClientRect();
+                // const boardCoords = boardElement.getBoundingClientRect();
+                // badge.style.right = `${boardCoords.right - coords.right}px`
+                // badge.style.bottom = `${boardCoords.bottom - coords.bottom}px`;
+
                 const badgeText = document.createElement('span');
                 badgeText.classList.add('badge-text');
                 badgeText.innerText = getSymbol(board[cageIndex]);
@@ -129,6 +137,7 @@ function createBoard(board) {
             }
         }
     }
+
 }
 
 
@@ -193,3 +202,7 @@ function addCageBorders(
 
 
 createBoard(board);
+
+const addDominoes = () => {
+
+}

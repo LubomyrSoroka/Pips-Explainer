@@ -15,7 +15,6 @@ body {
 #board {
     display: grid;
     background: white;
-    position: relative;
 }
 
 .cell {
@@ -29,10 +28,9 @@ body {
 .innerCell {
     background-color: rgb(225, 203, 197);
     border-radius: 10px;
-    align-items: center;
-    justify-content: center;
     width: 90%;
     height: 90%;
+    z-index: 6;
 }
 
 .badge {
@@ -40,12 +38,12 @@ body {
     height: var(--badge-length);
     transform: translate(calc(var(--badge-length) / 2),
             calc(var(--badge-length) / 2)) rotate(45deg);
+    z-index: 5;
 
     /* transform: rotate(45deg); */
     position: absolute;
     color: white;
     font-weight: bold;
-    z-index: 1;
     background-color: black;
     border-radius: 5px;
 }
