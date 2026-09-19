@@ -3,6 +3,10 @@ import { board } from "./explainer.js"
 
 const possibleCells = new Set();
 
+// the indices that correspond to the cell that should have the badge for a region
+// this goes to the cell which is lowest in the region. For cells which are equally low, take the right-most cell.
+const badgeIndices = new Map();
+
 function getBoardSize(board) {
     let maxRow = 0;
     let maxCol = 0;
@@ -28,6 +32,13 @@ function getCageMap(board) {
     board.forEach((cage, cageIndex) => {
         for (const [row, col] of cage.indices) {
             map.set(`${row},${col}`, cageIndex);
+            const currentBadgeIndex = badgeIndices.get(cageIndex);
+            if (!currentBadgeIndex)
+                badgeIndices.set(cageIndex, [row, col])
+            else if (currentBadgeIndex[0] < row)
+                badgeIndices.set(cageIndex, [row, col])
+            else if (currentBadgeIndex[0] === row && currentBadgeIndex[1] < col)
+                badgeIndices.set(cageIndex, [row, col])
         }
     });
 
@@ -38,13 +49,13 @@ function getCageMap(board) {
 function getSymbol(cage) {
     switch (cage.type) {
         case 'less':
-            return '<';
+            return '<' + cage.target;
 
         case 'greater':
-            return '>';
+            return '>' + cage.target;
 
         case 'sum':
-            return '+';
+            return cage.target;
 
         case 'equals':
             return '=';
@@ -76,6 +87,9 @@ function createBoard(board) {
             cell.classList.add('cell');
 
             const key = `${row},${col}`;
+            const cageIndex = cageMap.get(key);
+
+
             if (!possibleCells.has(key)) {
                 cell.style.visibility = 'hidden';
             }
@@ -84,7 +98,6 @@ function createBoard(board) {
             innerCell.classList.add('innerCell')
 
 
-            const cageIndex = cageMap.get(key);
 
             if (cageIndex !== undefined) {
 
@@ -99,6 +112,21 @@ function createBoard(board) {
 
             cell.appendChild(innerCell);
             boardElement.appendChild(cell);
+
+            if (badgeIndices.has(cageIndex) && badgeIndices.get(cageIndex)[0] === row && badgeIndices.get(cageIndex)[1] === col) {
+                const badge = document.createElement('div')
+                badge.classList.add('badge');
+                const boardElement = document.querySelector('#board')
+                boardElement.appendChild(badge);
+                const coords = cell.getBoundingClientRect();
+                const boardCoords = boardElement.getBoundingClientRect();
+                badge.style.right = `${boardCoords.right - coords.right}px`
+                badge.style.bottom = `${boardCoords.bottom - coords.bottom}px`;
+                const badgeText = document.createElement('span');
+                badgeText.classList.add('badge-text');
+                badgeText.innerText = getSymbol(board[cageIndex]);
+                badge.appendChild(badgeText);
+            }
         }
     }
 }
@@ -126,9 +154,9 @@ function addCageBorders(
         const borderElement = document.createElement('div');
         borderElement.classList.add('border-top');
         cell.appendChild(borderElement);
-        if(cageMap.get(neighbors.right) === cageIndex)
+        if (cageMap.get(neighbors.right) === cageIndex)
             borderElement.style.right = 0
-        if(cageMap.get(neighbors.left) === cageIndex)
+        if (cageMap.get(neighbors.left) === cageIndex)
             borderElement.style.left = 0
     }
 
@@ -136,9 +164,9 @@ function addCageBorders(
         const borderElement = document.createElement('div');
         borderElement.classList.add('border-bottom');
         cell.appendChild(borderElement);
-        if(cageMap.get(neighbors.right) === cageIndex)
+        if (cageMap.get(neighbors.right) === cageIndex)
             borderElement.style.right = 0
-        if(cageMap.get(neighbors.left) === cageIndex)
+        if (cageMap.get(neighbors.left) === cageIndex)
             borderElement.style.left = 0
     }
 
@@ -146,9 +174,9 @@ function addCageBorders(
         const borderElement = document.createElement('div');
         borderElement.classList.add('border-left');
         cell.appendChild(borderElement);
-        if(cageMap.get(neighbors.top) === cageIndex)
+        if (cageMap.get(neighbors.top) === cageIndex)
             borderElement.style.top = 0
-        if(cageMap.get(neighbors.bottom) === cageIndex)
+        if (cageMap.get(neighbors.bottom) === cageIndex)
             borderElement.style.bottom = 0
     }
 
@@ -156,9 +184,9 @@ function addCageBorders(
         const borderElement = document.createElement('div');
         borderElement.classList.add('border-right');
         cell.appendChild(borderElement);
-        if(cageMap.get(neighbors.top) === cageIndex)
+        if (cageMap.get(neighbors.top) === cageIndex)
             borderElement.style.top = 0
-        if(cageMap.get(neighbors.bottom) === cageIndex)
+        if (cageMap.get(neighbors.bottom) === cageIndex)
             borderElement.style.bottom = 0
     }
 }
