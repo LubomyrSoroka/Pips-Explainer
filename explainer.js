@@ -834,7 +834,7 @@ if (difficulty !== EASY && difficulty !== MEDIUM && difficulty !== HARD)
 const data = json[difficulty];
 
 
-const dominoes = data.dominoes;
+export const dominoes = data.dominoes;
 export const board = data.regions;
 
 console.dir(dominoes)

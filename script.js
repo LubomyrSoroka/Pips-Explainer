@@ -1,5 +1,6 @@
 
 import { board } from "./explainer.js"
+import { dominoes } from "./explainer.js"
 
 const possibleCells = new Set();
 
@@ -203,6 +204,24 @@ function addCageBorders(
 
 createBoard(board);
 
-const addDominoes = () => {
+
+const addDominoes = (dominoes) => {
+    const dominoesElement = document.querySelector('#dominoes');
+    for (const domino of dominoes) {
+        const dominoElement = document.createElement('div');
+        const leftSide = document.createElement('div');
+        const rightSide = document.createElement('div');
+        leftSide.style.borderRight = '1px solid black';
+        leftSide.textContent = domino[0];
+        rightSide.textContent = domino[1];
+        leftSide.classList.add('pips');
+        rightSide.classList.add('pips');
+        dominoElement.appendChild(leftSide);
+        dominoElement.appendChild(rightSide);
+        dominoElement.classList.add('domino');
+        dominoesElement.appendChild(dominoElement);
+    }
 
 }
+
+addDominoes(dominoes);
