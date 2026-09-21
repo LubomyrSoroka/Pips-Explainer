@@ -2,6 +2,7 @@
 import { board } from "./explainer.js"
 import { dominoes } from "./explainer.js"
 import { finalSolution } from "./explainer.js"
+import { getOtherIndex } from "./explainer.js";
 
 const possibleCells = new Set();
 
@@ -326,9 +327,55 @@ const putDominoOnBoard = (dominoEntry) => {
 
     const cell1 = indicesToCellMap.get(`${dominoEntry.area[0]},${dominoEntry.area[1]}`)
 
-    // edit cell directly: 
-    // cell1.style.backgroundColor = 'white'
-    // cell1.innerText = dominoEntry.domino[dominoEntry.flipped ? 1 : 0]
+const otherIndices = getOtherIndex(
+    dominoEntry.area,
+    dominoEntry.direction
+);
+
+const cell2 = indicesToCellMap.get(
+    `${otherIndices[0]},${otherIndices[1]}`
+);
+
+// Set up both cells
+for (const cell of [cell1, cell2]) {
+    cell.style.backgroundColor = 'white';
+    cell.style.borderTop = '2px solid black';
+    cell.style.borderBottom = '2px solid black';
+    cell.style.borderRight = '2px solid black';
+    cell.style.borderLeft = '2px solid black';
+}
+
+// Add the domino values
+cell1.append(
+    dominoEntry.domino[dominoEntry.flipped ? 1 : 0]
+);
+
+cell2.append(
+    dominoEntry.domino[dominoEntry.flipped ? 0 : 1]
+);
+
+// Remove the border between the two cells
+switch (dominoEntry.direction) {
+    case 'up':
+        cell1.style.borderTop = '2px solid transparent';
+        cell2.style.borderBottom = '2px solid transparent';
+        break;
+
+    case 'down':
+        cell1.style.borderBottom = '2px solid transparent';
+        cell2.style.borderTop = '2px solid transparent';
+        break;
+
+    case 'right':
+        cell1.style.borderRight = '2px solid transparent';
+        cell2.style.borderLeft = '2px solid transparent';
+        break;
+
+    case 'left':
+        cell1.style.borderLeft = '2px solid transparent';
+        cell2.style.borderRight = '2px solid transparent';
+        break;
+}
 
     // the next two methods work by copying the exisitng element and appending it.
     // to append to the inner cell: 
@@ -342,16 +389,16 @@ const putDominoOnBoard = (dominoEntry) => {
     // cell1.appendChild(copy);
 
     //to append to the board: 
-    const boardElement = document.querySelector('#board');
-    const cell1Coords = cell1.getBoundingClientRect();
-    const boardCoords = boardElement.getBoundingClientRect();
-    copy.style.position = 'absolute';
-    copy.style.margin = 0 + 'px';
-    copy.style.left = cell1Coords.left - boardCoords.left + 'px';
-    copy.style.top = cell1Coords.top - boardCoords.top + 'px';
-    copy.style.zIndex = 5;
-    copy.style.transformOrigin = `${cellSize / 2}px ${cellSize / 2}px`;
-    copy.style.transform = 'rotate(' + rotation + 'deg)';
+    // const boardElement = document.querySelector('#board');
+    // const cell1Coords = cell1.getBoundingClientRect();
+    // const boardCoords = boardElement.getBoundingClientRect();
+    // copy.style.position = 'absolute';
+    // copy.style.margin = 0 + 'px';
+    // copy.style.left = cell1Coords.left - boardCoords.left + 'px';
+    // copy.style.top = cell1Coords.top - boardCoords.top + 'px';
+    // copy.style.zIndex = 5;
+    // copy.style.transformOrigin = `${cellSize / 2}px ${cellSize / 2}px`;
+    // copy.style.transform = 'rotate(' + rotation + 'deg)';
 
     boardElement.prepend(copy);
 
