@@ -2,6 +2,12 @@
     box-sizing: border-box;
 }
 
+:root {
+    --border-width: 2px;
+    --badge-length: 30px;
+    --border-radius: 10px;
+}
+
 body {
     margin: 0;
     min-height: 100vh;
@@ -17,6 +23,7 @@ body {
 
 #board {
     display: grid;
+    position: relative;
 }
 
 #dominoes {
@@ -29,11 +36,12 @@ body {
     border: 1px solid black;
     margin: 20px;
     border-radius: 10px;
+    background-color: white;
 }
 
 .pips {
-    width: 40px;
-    height: 40px;
+    width: 60px;
+    height: 60px;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -44,16 +52,28 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    background-color: rgb(219, 194, 185)
+    background-color: rgb(219, 194, 185);
+    border: 1px solid rgb(0, 0, 0, 0.2);
 }
 
-.innerCell {
-    background-color: rgb(225, 203, 197);
-    border-radius: 10px;
-    width: 90%;
-    height: 90%;
-    z-index: 6;
+.tint {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    z-index: 7;
+    background-color: rgba(255, 0, 0, 0.2);
 }
+
+/* .innerCell {
+    background-color: rgb(225, 203, 197);
+    border-radius: var(--border-radius);
+    width: 80%;
+    height: 80%;
+    z-index: 6;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+} */
 
 .badge {
     width: var(--badge-length);
@@ -66,7 +86,7 @@ body {
     position: absolute;
     color: white;
     font-weight: bold;
-    background-color: black;
+    background-color: red;
     border-radius: 5px;
 }
 
@@ -85,17 +105,13 @@ body {
  * cell borders so that adjacent cells in the same cage
  * don't have an internal cage line.
  */
-:root {
-    --border-width: 2px;
-    --badge-length: 30px;
-}
 
 .border-top {
     position: absolute;
     top: var(--border-width);
     left: 10px;
     right: 10px;
-    border-top: var(--border-width) dashed black;
+    border-top: var(--border-width) dashed red;
 }
 
 .border-right {
@@ -103,7 +119,7 @@ body {
     right: var(--border-width);
     top: 10px;
     bottom: 10px;
-    border-right: var(--border-width) dashed black;
+    border-right: var(--border-width) dashed red;
 }
 
 .border-left {
@@ -111,7 +127,7 @@ body {
     left: var(--border-width);
     top: 10px;
     bottom: 10px;
-    border-left: var(--border-width) dashed black;
+    border-left: var(--border-width) dashed red;
 }
 
 .border-bottom {
@@ -119,7 +135,7 @@ body {
     bottom: var(--border-width);
     left: 10px;
     right: 10px;
-    border-bottom: var(--border-width) dashed black;
+    border-bottom: var(--border-width) dashed red;
 }
 
 .cage-top {

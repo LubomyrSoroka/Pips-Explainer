@@ -60,6 +60,10 @@
 let indicesToRegion = {};
 let validIndices = new Set();
 
+export const finalSolution = [];
+export let done = false;
+
+
 let dominoPartCounts = {
     0: 0,
     1: 0,
@@ -296,6 +300,7 @@ const rule_canOnlyBePlacedByOneDomino = (dominoes, silenced = false) => {
                 if (!silenced) {
                     console.log("Added domino in this position through rule_canOnlyBePlacedByOneDomino")
                     console.log("added domino", dominoEntry)
+                    finalSolution.push(dominoEntry);
                 }
 
                 foundAreasAndDominoes.push(dominoEntry);
@@ -320,7 +325,7 @@ const rule_canOnlyBePlacedByOneDomino = (dominoes, silenced = false) => {
 }
 
 
-const getOtherIndex = ([i, j], direction) => {
+export const getOtherIndex = ([i, j], direction) => {
     switch (direction) {
         case DOWN:
             return [i + 1, j];
@@ -425,8 +430,14 @@ const lookAhead = (leastOptionsPlacement) => {
                 }
 
 
-                console.log(`Added domino because all other root nodes are invalid at this cell: ${cellString} (through performing depth ${depth} search)`)
+                console.log(`Added domino because all other root nodes are invalid at this cell: ${validOption.cell} (through performing depth ${depth} search)`)
                 console.dir(dominoEntry, { depth: null });
+                // call some function which puts this domino on the board.
+                //putDominoOnBoard(dominoEntry);
+                finalSolution.push(dominoEntry);
+
+
+
                 foundDominoes.push(validOption.domino);
                 const otherIndices = getOtherIndex(validOption.cell, validOption.direction);
                 const validOptionAreaString = `${validOption.cell[0]},${validOption.cell[1]}`;
@@ -818,6 +829,8 @@ const isOutOfBounds = (row, col) => {
 // Aug 24, 2026 easy // no looking ahead
 // Aug 17, 2026 Medium
 
+//await fetch('https://www.nytimes.com/games/pips/easy');
+
 const date = new Date('2026-08-17T00:00:00Z'); // leave the part after T to ensure that this is in UTC. That way when converting the date to string, it doesn't change based on your timezone.
 const difficulty = MEDIUM;
 const allData = await fetch(`https://www.nytimes.com/svc/pips/v1/${date.toISOString().split('T')[0]}.json`, {
@@ -894,8 +907,10 @@ while (canPlaceDomino() && iterations++ < MAX_ITERATIONS) {
 }
 
 //console.dir(result, { depth: null });
-if (!canPlaceDomino())
+if (!canPlaceDomino()) {
+    done = true;
     console.log("puzzle solved?")
+}
 
 
 
