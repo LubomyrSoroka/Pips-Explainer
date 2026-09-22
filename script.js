@@ -3,6 +3,8 @@ import { board } from "./explainer.js"
 import { dominoes } from "./explainer.js"
 import { finalSolution } from "./explainer.js"
 import { getOtherIndex } from "./explainer.js";
+import { invalidRoots } from "./explainer.js";
+
 
 const possibleCells = new Set();
 
@@ -49,7 +51,7 @@ function getRegionMap(board) {
 }
 
 const regionToColor = new Map();
-const colors = new Set(['red', 'green', 'blue', 'purple', 'yellow', 'orange'])
+const colors = new Set(['red', 'green', 'blue', 'purple', 'orange']);
 const getNeighbouringRegions = (region) => {
     const neighbourSet = new Set()
     for (const [row, col] of region.indices) {
@@ -288,7 +290,14 @@ const addDominoes = (dominoes) => {
 // });
 
 const nextButton = document.querySelector('#next');
-const clickNext = () => {
+
+const waitForNextClick = (button) => {
+    return new Promise(resolve => {
+        button.addEventListener('click', resolve, { once: true });
+    });
+};
+
+const clickNext = async () => {
     const dominoEntry = finalSolution[0];
     finalSolution.shift();
     putDominoOnBoard(dominoEntry);
@@ -298,11 +307,39 @@ const clickNext = () => {
         doneText.textContent = 'Solved!';
         controls.appendChild(doneText);
     }
+    if (invalidRoots[JSON.stringify(dominoEntry.area)].length > 0) {
+        const nextForWrongPath = document.querySelector('#next-for-wrong-path');
+        nextForWrongPath.style.display = 'block';
+
+        const dfs = async (root) => {
+            if (root.children.length === 0) {
+                return;
+            }
+            for (const child of root.children) {
+                await waitForNextClick(nextForWrongPath);
+                const [cell1DominoHalf, cell2DominoHalf] = putDominoOnBoard(child.value);
+                await dfs(child);
+                // remove the domino from the board
+                cell1DominoHalf.remove();
+                cell2DominoHalf.remove();
+
+            }
+        }
+
+        for (const root of invalidRoots[JSON.stringify(dominoEntry.area)]) {
+            await dfs(root);
+        }
+
+    }
 }
 nextButton.addEventListener('click', clickNext);
 
+
+
 const putDominoOnBoard = (dominoEntry) => {
     const dominoElement = dominoMap.get(JSON.stringify(dominoEntry.domino));
+
+    /*
     const copy = dominoElement.cloneNode(true)
     let rotation = 0;
     // rotations are clockwise
@@ -320,62 +357,88 @@ const putDominoOnBoard = (dominoEntry) => {
             rotation = 90;
             break;
     }
+    */
 
     dominoElement.style.backgroundColor = 'grey';
     dominoElement.style.border = 'none';
     dominoElement.replaceChildren();
 
     const cell1 = indicesToCellMap.get(`${dominoEntry.area[0]},${dominoEntry.area[1]}`)
+    const cell1DominoHalf = document.createElement('div');
+    cell1DominoHalf.classList.add('domino-half');
 
-const otherIndices = getOtherIndex(
-    dominoEntry.area,
-    dominoEntry.direction
-);
 
-const cell2 = indicesToCellMap.get(
-    `${otherIndices[0]},${otherIndices[1]}`
-);
+    const otherIndices = getOtherIndex(
+        dominoEntry.area,
+        dominoEntry.direction
+    );
 
-// Set up both cells
-for (const cell of [cell1, cell2]) {
-    cell.style.backgroundColor = 'white';
-    cell.style.borderTop = '2px solid black';
-    cell.style.borderBottom = '2px solid black';
-    cell.style.borderRight = '2px solid black';
-    cell.style.borderLeft = '2px solid black';
-}
+    const cell2 = indicesToCellMap.get(
+        `${otherIndices[0]},${otherIndices[1]}`
+    );
+    const cell2DominoHalf = document.createElement('div');
+    cell2DominoHalf.classList.add('domino-half');
 
-// Add the domino values
-cell1.append(
-    dominoEntry.domino[dominoEntry.flipped ? 1 : 0]
-);
+    // Set up both cells
+    for (const cell of [cell1DominoHalf, cell2DominoHalf]) {
+        cell.style.backgroundColor = 'white';
+        cell.style.borderTop = '2px solid black';
+        cell.style.borderBottom = '2px solid black';
+        cell.style.borderRight = '2px solid black';
+        cell.style.borderLeft = '2px solid black';
+        cell.style.borderTopLeftRadius = 'var(--border-radius)';
+        cell.style.borderBottomLeftRadius = 'var(--border-radius)';
+        cell.style.borderTopRightRadius = 'var(--border-radius)';
+        cell.style.borderBottomRightRadius = 'var(--border-radius)';
+    }
 
-cell2.append(
-    dominoEntry.domino[dominoEntry.flipped ? 0 : 1]
-);
+    // Add the domino values
+    cell1DominoHalf.append(
+        dominoEntry.domino[dominoEntry.flipped ? 1 : 0]
+    );
 
-// Remove the border between the two cells
-switch (dominoEntry.direction) {
-    case 'up':
-        cell1.style.borderTop = '2px solid transparent';
-        cell2.style.borderBottom = '2px solid transparent';
-        break;
+    cell2DominoHalf.append(
+        dominoEntry.domino[dominoEntry.flipped ? 0 : 1]
+    );
 
-    case 'down':
-        cell1.style.borderBottom = '2px solid transparent';
-        cell2.style.borderTop = '2px solid transparent';
-        break;
+    // Remove the border between the two cells
+    switch (dominoEntry.direction) {
+        case 'up':
+            cell1DominoHalf.style.borderTop = '2px solid transparent';
+            cell2DominoHalf.style.borderBottom = '2px solid transparent';
+            cell1DominoHalf.style.borderTopLeftRadius = '0';
+            cell1DominoHalf.style.borderTopRightRadius = '0';
+            cell2DominoHalf.style.borderBottomLeftRadius = '0';
+            cell2DominoHalf.style.borderBottomRightRadius = '0';
+            break;
 
-    case 'right':
-        cell1.style.borderRight = '2px solid transparent';
-        cell2.style.borderLeft = '2px solid transparent';
-        break;
+        case 'down':
+            cell1DominoHalf.style.borderBottom = '2px solid transparent';
+            cell2DominoHalf.style.borderTop = '2px solid transparent';
+            cell1DominoHalf.style.borderBottomLeftRadius = '0';
+            cell1DominoHalf.style.borderBottomRightRadius = '0';
+            cell2DominoHalf.style.borderTopLeftRadius = '0';
+            cell2DominoHalf.style.borderTopRightRadius = '0';
+            break;
 
-    case 'left':
-        cell1.style.borderLeft = '2px solid transparent';
-        cell2.style.borderRight = '2px solid transparent';
-        break;
-}
+        case 'right':
+            cell1DominoHalf.style.borderRight = '2px solid transparent';
+            cell2DominoHalf.style.borderLeft = '2px solid transparent';
+            cell1DominoHalf.style.borderTopRightRadius = '0';
+            cell1DominoHalf.style.borderBottomRightRadius = '0';
+            cell2DominoHalf.style.borderTopLeftRadius = '0';
+            cell2DominoHalf.style.borderBottomLeftRadius = '0';
+            break;
+
+        case 'left':
+            cell1DominoHalf.style.borderLeft = '2px solid transparent';
+            cell2DominoHalf.style.borderRight = '2px solid transparent';
+            cell1DominoHalf.style.borderTopLeftRadius = '0';
+            cell1DominoHalf.style.borderBottomLeftRadius = '0';
+            cell2DominoHalf.style.borderTopRightRadius = '0';
+            cell2DominoHalf.style.borderBottomRightRadius = '0';
+            break;
+    }
 
     // the next two methods work by copying the exisitng element and appending it.
     // to append to the inner cell: 
@@ -400,7 +463,9 @@ switch (dominoEntry.direction) {
     // copy.style.transformOrigin = `${cellSize / 2}px ${cellSize / 2}px`;
     // copy.style.transform = 'rotate(' + rotation + 'deg)';
 
-    boardElement.prepend(copy);
+    cell1.append(cell1DominoHalf);
+    cell2.append(cell2DominoHalf);
+    return [cell1DominoHalf, cell2DominoHalf];
 
 }
 

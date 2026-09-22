@@ -61,6 +61,7 @@ let indicesToRegion = {};
 let validIndices = new Set();
 
 export const finalSolution = [];
+export const invalidRoots = new Map();
 export let done = false;
 
 
@@ -364,11 +365,10 @@ const lookAhead = (leastOptionsPlacement) => {
     for (let i = 0; i < roots.length; ++i) {
 
         let currentNode = roots[i];
+
+        // does this do anything?
         if (currentNode.invalid)
             continue;
-
-        let cell = roots[i].value.cell;
-        const cellString = `${cell[0]},${cell[1]}`;
 
 
         ({ indicesToRegion, regions } = structuredClone({ indicesToRegion: originalConditionsPointer, regions: originalRegionsPointer }));
@@ -420,6 +420,9 @@ const lookAhead = (leastOptionsPlacement) => {
                     if (roots[j].invalid === false) {
                         validOption = roots[j].value;
                     }
+                    else {
+                        (invalidRoots[JSON.stringify(leastOptionsPlacement[0].cell)] ??= []).push(roots[j]);
+                    }
                 }
 
                 const dominoEntry = {
@@ -432,11 +435,10 @@ const lookAhead = (leastOptionsPlacement) => {
 
                 console.log(`Added domino because all other root nodes are invalid at this cell: ${validOption.cell} (through performing depth ${depth} search)`)
                 console.dir(dominoEntry, { depth: null });
-                // call some function which puts this domino on the board.
-                //putDominoOnBoard(dominoEntry);
+                // need to save the incorrect paths to show why they are wrong.
+                // it's already saved in roots.
+
                 finalSolution.push(dominoEntry);
-
-
 
                 foundDominoes.push(validOption.domino);
                 const otherIndices = getOtherIndex(validOption.cell, validOption.direction);
