@@ -34,18 +34,20 @@ function getBoardSize(board) {
 const indicesToRegion = new Map();
 
 function getRegionMap(board) {
-    board.forEach((cage, cageIndex) => {
+    board.forEach((region, regionIndex) => {
         // take the set difference of available colors and the colors of the neighbors.
 
-        for (const [row, col] of cage.indices) {
-            indicesToRegion.set(`${row},${col}`, cageIndex);
-            const currentBadgeIndex = badgeIndices.get(cageIndex);
+        for (const [row, col] of region.indices) {
+            indicesToRegion.set(`${row},${col}`, regionIndex);
+            const currentBadgeIndex = badgeIndices.get(regionIndex);
+            if (region.type === 'empty')
+                continue;
             if (!currentBadgeIndex)
-                badgeIndices.set(cageIndex, [row, col])
+                badgeIndices.set(regionIndex, [row, col])
             else if (currentBadgeIndex[0] < row)
-                badgeIndices.set(cageIndex, [row, col])
+                badgeIndices.set(regionIndex, [row, col])
             else if (currentBadgeIndex[0] === row && currentBadgeIndex[1] < col)
-                badgeIndices.set(cageIndex, [row, col])
+                badgeIndices.set(regionIndex, [row, col])
         }
     });
 }
@@ -74,6 +76,10 @@ const getNeighbouringRegions = (region) => {
 
 const setColors = () => {
     board.forEach((region, regionIndex) => {
+        if (region.type === 'empty') {
+            regionToColor.set(regionIndex, null)
+            return;
+        }
         const neighbourSet = getNeighbouringRegions(region);
         const neighborColors = new Set(Array.from(neighbourSet).map(neighborIndex => regionToColor.get(neighborIndex)))
         const availableColors = colors.difference(neighborColors);
@@ -140,10 +146,12 @@ function createBoard(board) {
 
             const regionIndex = indicesToRegion.get(key);
 
-            const tintElement = document.createElement('div');
-            tintElement.classList.add('tint');
-            tintElement.style.backgroundColor = `color-mix(in srgb, ${regionToColor.get(regionIndex)} 30%, transparent)`;
-            cell.appendChild(tintElement);
+            if (regionToColor.get(regionIndex)) {
+                const tintElement = document.createElement('div');
+                tintElement.classList.add('tint');
+                tintElement.style.backgroundColor = `color-mix(in srgb, ${regionToColor.get(regionIndex)} 30%, transparent)`;
+                cell.appendChild(tintElement);
+            }
 
             if (regionIndex !== undefined) {
                 addCageBorders(
@@ -264,21 +272,24 @@ const addDominoes = (dominoes) => {
 
         const dominoElement = document.createElement('div');
         // what if there are two dominoes which are identicial (rare)
-        const leftSide = document.createElement('div');
-        const rightSide = document.createElement('div');
-        leftSide.style.borderRight = '1px solid black';
-        leftSide.textContent = domino[0];
-        rightSide.textContent = domino[1];
-        leftSide.classList.add('pips');
-        rightSide.classList.add('pips');
-        dominoMap.set(JSON.stringify(domino), dominoElement);
-        dominoElement.appendChild(leftSide);
-        dominoElement.appendChild(rightSide);
-        dominoElement.classList.add('domino');
+        createHalves(dominoElement, domino);
         dominoesElement.appendChild(dominoElement);
     }
 }
 
+const createHalves = (dominoElement, domino) => {
+    const leftSide = document.createElement('div');
+    const rightSide = document.createElement('div');
+    leftSide.style.borderRight = '1px solid black';
+    leftSide.textContent = domino[0];
+    rightSide.textContent = domino[1];
+    leftSide.classList.add('pips');
+    rightSide.classList.add('pips');
+    dominoMap.set(JSON.stringify(domino), dominoElement);
+    dominoElement.appendChild(leftSide);
+    dominoElement.appendChild(rightSide);
+    dominoElement.classList.add('domino');
+}
 // window.addEventListener('added-first-domino', () => {
 //     const controls = document.querySelector('#controls');
 //     const nextButton = document.createElement('button');
@@ -290,53 +301,96 @@ const addDominoes = (dominoes) => {
 // });
 
 const nextButton = document.querySelector('#next');
+let shouldExit = false;
 
-const waitForNextClick = (button) => {
+const waitForNextClick = (button, skipButton) => {
     return new Promise(resolve => {
-        button.addEventListener('click', resolve, { once: true });
+        button.addEventListener('click',
+            () => {
+                shouldExit = false;
+                resolve();
+            }
+            , { once: true });
+        skipButton.addEventListener('click',
+            () => {
+                shouldExit = true;
+                resolve();
+            }
+            , { once: true });
     });
 };
 
 const clickNext = async () => {
-    const dominoEntry = finalSolution[0];
+    const { dominoEntry, reasoning } = finalSolution[0];
     finalSolution.shift();
-    putDominoOnBoard(dominoEntry);
+    const [originalcell1DominoHalf, originalcell2DominoHalf] = putDominoOnBoard(dominoEntry);
+    const reasoningText = document.querySelector('#reasoning-text');
+    reasoningText.textContent = reasoning;
     if (finalSolution.length === 0) {
         controls.replaceChildren();
         const doneText = document.createElement('span');
         doneText.textContent = 'Solved!';
         controls.appendChild(doneText);
     }
-    if (invalidRoots[JSON.stringify(dominoEntry.area)].length > 0) {
-        const nextForWrongPath = document.querySelector('#next-for-wrong-path');
+    const nextForWrongPath = document.querySelector('#next-for-wrong-path');
+    if (invalidRoots[JSON.stringify(dominoEntry.cell)].length > 0) {
         nextForWrongPath.style.display = 'block';
 
         const dfs = async (root) => {
             if (root.children.length === 0) {
+                await waitForNextClick(nextForWrongPath, nextButton);
                 return;
             }
             for (const child of root.children) {
-                await waitForNextClick(nextForWrongPath);
-                const [cell1DominoHalf, cell2DominoHalf] = putDominoOnBoard(child.value);
+                await waitForNextClick(nextForWrongPath, nextButton);
+                if (shouldExit) {
+                    return;
+                }
+                const [cell1DominoHalf, cell2DominoHalf] = putDominoOnBoard(child.value, true);
                 await dfs(child);
-                // remove the domino from the board
-                cell1DominoHalf.remove();
-                cell2DominoHalf.remove();
-
+                removeDomino(cell1DominoHalf, cell2DominoHalf, child.value);
             }
         }
-
-        for (const root of invalidRoots[JSON.stringify(dominoEntry.area)]) {
+        for (const root of invalidRoots[JSON.stringify(dominoEntry.cell)]) {
+            await waitForNextClick(nextForWrongPath, nextButton);
+            if (shouldExit) {
+                return;
+            }
+            removeDomino(originalcell1DominoHalf, originalcell2DominoHalf, dominoEntry);
+            const definitePlacements = [];
+            for (const placement of root.definitePlacements) {
+                let dominoElement = dominoMap.get(JSON.stringify(placement.domino));
+                dominoElement.style.background = 'grey';
+                dominoElement.style.border = 'none';
+                definitePlacements.push(putDominoOnBoard(placement, true));
+            }
+            const [cell1DominoHalf, cell2DominoHalf] = putDominoOnBoard(root.value, true);
             await dfs(root);
+            removeDomino(cell1DominoHalf, cell2DominoHalf, root.value);
+            for (const placement of definitePlacements) {
+                removeDomino(placement[0], placement[1], root.definitePlacements[placement]);
+            }
         }
-
+        nextForWrongPath.style.display = 'none';
     }
+    else {
+        nextForWrongPath.style.display = 'none';
+    }
+    putDominoOnBoard(dominoEntry);
 }
 nextButton.addEventListener('click', clickNext);
 
+const removeDomino = (cell1DominoHalf, cell2DominoHalf, dominoEntry) => {
+    cell1DominoHalf.remove();
+    cell2DominoHalf.remove();
+    let dominoElement = dominoMap.get(JSON.stringify(dominoEntry.domino));
+    dominoElement.style.background = 'white';
+    dominoElement.style.border = '1px solid black'
+    createHalves(dominoElement, dominoEntry.domino);
+}
 
 
-const putDominoOnBoard = (dominoEntry) => {
+const putDominoOnBoard = (dominoEntry, incorrectPlacement = false) => {
     const dominoElement = dominoMap.get(JSON.stringify(dominoEntry.domino));
 
     /*
@@ -363,13 +417,13 @@ const putDominoOnBoard = (dominoEntry) => {
     dominoElement.style.border = 'none';
     dominoElement.replaceChildren();
 
-    const cell1 = indicesToCellMap.get(`${dominoEntry.area[0]},${dominoEntry.area[1]}`)
+    const cell1 = indicesToCellMap.get(`${dominoEntry.cell[0]},${dominoEntry.cell[1]}`)
     const cell1DominoHalf = document.createElement('div');
     cell1DominoHalf.classList.add('domino-half');
 
 
     const otherIndices = getOtherIndex(
-        dominoEntry.area,
+        dominoEntry.cell,
         dominoEntry.direction
     );
 
@@ -379,13 +433,16 @@ const putDominoOnBoard = (dominoEntry) => {
     const cell2DominoHalf = document.createElement('div');
     cell2DominoHalf.classList.add('domino-half');
 
+    const backgroudColor = incorrectPlacement ? 'black' : 'white'
+    const pipsColor = incorrectPlacement ? 'white' : 'black';
     // Set up both cells
     for (const cell of [cell1DominoHalf, cell2DominoHalf]) {
-        cell.style.backgroundColor = 'white';
-        cell.style.borderTop = '2px solid black';
-        cell.style.borderBottom = '2px solid black';
-        cell.style.borderRight = '2px solid black';
-        cell.style.borderLeft = '2px solid black';
+        cell.style.backgroundColor = backgroudColor;
+        cell.style.color = pipsColor;
+        cell.style.borderTop = `2px solid ${pipsColor}`;
+        cell.style.borderBottom = `2px solid ${pipsColor}`;
+        cell.style.borderRight = `2px solid ${pipsColor}`;
+        cell.style.borderLeft = `2px solid ${pipsColor}`;
         cell.style.borderTopLeftRadius = 'var(--border-radius)';
         cell.style.borderBottomLeftRadius = 'var(--border-radius)';
         cell.style.borderTopRightRadius = 'var(--border-radius)';

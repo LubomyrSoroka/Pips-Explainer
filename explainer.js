@@ -293,15 +293,15 @@ const rule_canOnlyBePlacedByOneDomino = (dominoes, silenced = false) => {
                 validIndices.delete(`${i},${j}`);
                 validIndices.delete(`${otherIndices[0]},${otherIndices[1]}`);
                 const dominoEntry = {
-                    area: [i, j],
+                    cell: [i, j],
                     domino: validDomino,
                     direction: validDirection,
                     flipped: validFlipped
                 }
                 if (!silenced) {
-                    console.log("Added domino in this position through rule_canOnlyBePlacedByOneDomino")
-                    console.log("added domino", dominoEntry)
-                    finalSolution.push(dominoEntry);
+                    const reasoning = "Added domino in this position through rule_canOnlyBePlacedByOneDomino";
+                    // console.log("added domino", dominoEntry)
+                    finalSolution.push({ dominoEntry, reasoning });
                 }
 
                 foundAreasAndDominoes.push(dominoEntry);
@@ -357,6 +357,7 @@ const lookAhead = (leastOptionsPlacement) => {
             this.parent = parent;
             this.children = [];
             this.invalid = false;
+            this.definitePlacemnents = [];
         }
     }
     const numberRootNodes = leastOptionsPlacement.length;
@@ -421,24 +422,25 @@ const lookAhead = (leastOptionsPlacement) => {
                         validOption = roots[j].value;
                     }
                     else {
-                        (invalidRoots[JSON.stringify(leastOptionsPlacement[0].cell)] ??= []).push(roots[j]);
+                        (invalidRoots[JSON.stringify(roots[j].value.cell)] ??= []).push(roots[j]);
                     }
                 }
 
                 const dominoEntry = {
-                    area: validOption.cell,
+                    cell: validOption.cell,
                     domino: validOption.domino,
                     direction: validOption.direction,
                     flipped: validOption.flipped
                 }
 
-
-                console.log(`Added domino because all other root nodes are invalid at this cell: ${validOption.cell} (through performing depth ${depth} search)`)
-                console.dir(dominoEntry, { depth: null });
+                const reasoning = `Added domino because all other root nodes are invalid at this cell: ${validOption.cell} (through performing depth ${depth} search)`;
+                // console.log(reasoning);
+                // console.dir(dominoEntry, { depth: null });
                 // need to save the incorrect paths to show why they are wrong.
                 // it's already saved in roots.
 
-                finalSolution.push(dominoEntry);
+
+                finalSolution.push({ dominoEntry, reasoning });
 
                 foundDominoes.push(validOption.domino);
                 const otherIndices = getOtherIndex(validOption.cell, validOption.direction);
@@ -473,7 +475,9 @@ const lookAhead = (leastOptionsPlacement) => {
             }
         }
 
-        // this isn't tracking of the result.foundPlacements. 
+        roots[i].definitePlacements = [...(result?.foundPlacements || [])];
+
+
         leastOptionsPlacement = result?.possiblePlacements;
         roots[i].children = leastOptionsPlacement.map(placement => new TreeNode(placement));
         roots[i].children.forEach(child => { child.parent = roots[i] });
@@ -833,8 +837,8 @@ const isOutOfBounds = (row, col) => {
 
 //await fetch('https://www.nytimes.com/games/pips/easy');
 
-const date = new Date('2026-08-17T00:00:00Z'); // leave the part after T to ensure that this is in UTC. That way when converting the date to string, it doesn't change based on your timezone.
-const difficulty = MEDIUM;
+const date = new Date('2026-08-25T00:00:00Z'); // leave the part after T to ensure that this is in UTC. That way when converting the date to string, it doesn't change based on your timezone.
+const difficulty = EASY;
 const allData = await fetch(`https://www.nytimes.com/svc/pips/v1/${date.toISOString().split('T')[0]}.json`, {
     headers: {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/[IP_ADDRESS] Safari/537.36'
