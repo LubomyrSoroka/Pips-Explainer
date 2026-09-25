@@ -74,7 +74,7 @@ let dominoPartCounts = {
     5: 0,
     6: 0
 }
-let initialDominoPartCounts = null;
+export let initialDominoPartCounts = null;
 let rowMin = 0;
 let colMin = 0;
 let rowMax = 0;

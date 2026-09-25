@@ -31,6 +31,11 @@ body {
     grid-template-columns: repeat(4, 1fr);
 }
 
+#part-counts {
+    display: flex;
+    gap: 10px;
+}
+
 .domino-half {
     width: 100%;
     height: 100%;

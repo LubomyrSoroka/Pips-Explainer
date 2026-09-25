@@ -4,7 +4,17 @@ import { dominoes } from "./explainer.js"
 import { finalSolution } from "./explainer.js"
 import { getOtherIndex } from "./explainer.js";
 import { invalidRoots } from "./explainer.js";
+import { initialDominoPartCounts } from "./explainer.js";
 
+
+const setPartCounts = () => {
+    const partCountsElement = document.querySelector('#part-counts');
+    Object.entries(initialDominoPartCounts).forEach(([index, count]) => {
+        const partCountElement = document.createElement('div');
+        partCountElement.textContent = `${index}: ${count}`;
+        partCountsElement.appendChild(partCountElement);
+    })
+}
 
 const possibleCells = new Set();
 
@@ -550,6 +560,7 @@ const putDominoOnBoard = (dominoEntry, placementType = NORMAL) => {
 
 getRegionMap(board);
 setColors();
+setPartCounts();
 createBoard(board);
 addDominoes(dominoes);
 
