@@ -320,6 +320,22 @@ const waitForNextClick = (button, skipButton) => {
     });
 };
 
+
+let currentHighlightedCell = null;
+const highlightCell = (cell) => {
+    const lastBorder = indicesToCellMap.get(`${cell[0]},${cell[1]}`).style.border;
+    indicesToCellMap.get(`${cell[0]},${cell[1]}`).style.border = '3px solid red';
+    if (currentHighlightedCell)
+        indicesToCellMap.get(`${currentHighlightedCell.cell[0]},${currentHighlightedCell.cell[1]}`).style.border = currentHighlightedCell.lastBorder
+    currentHighlightedCell = { cell, lastBorder };
+}
+
+const unhighlightCell = () => {
+    if (currentHighlightedCell) {
+        indicesToCellMap.get(`${currentHighlightedCell.cell[0]},${currentHighlightedCell.cell[1]}`).style.border = currentHighlightedCell.lastBorder
+        currentHighlightedCell = null;
+    }
+}
 const clickNext = async () => {
     const { dominoEntry, reasoning } = finalSolution[0];
     finalSolution.shift();
@@ -333,6 +349,7 @@ const clickNext = async () => {
         controls.appendChild(doneText);
     }
     const nextForWrongPath = document.querySelector('#next-for-wrong-path');
+    highlightCell(dominoEntry.cell);
     if (invalidRoots[JSON.stringify(dominoEntry.cell)].length > 0) {
         nextForWrongPath.style.display = 'block';
 
@@ -346,9 +363,10 @@ const clickNext = async () => {
                 if (shouldExit) {
                     return;
                 }
-                const [cell1DominoHalf, cell2DominoHalf] = putDominoOnBoard(child.value, true);
+                highlightCell(child.value.cell);
+                const [cell1DominoHalf, cell2DominoHalf] = putDominoOnBoard(child.value, INCORRECT);
                 await dfs(child);
-                removeDomino(cell1DominoHalf, cell2DominoHalf, child.value);
+                removeDomino(cell1DominoHalf, cell2DominoHalf, child.value.domino);
             }
         }
         for (const root of invalidRoots[JSON.stringify(dominoEntry.cell)]) {
@@ -356,19 +374,19 @@ const clickNext = async () => {
             if (shouldExit) {
                 return;
             }
-            removeDomino(originalcell1DominoHalf, originalcell2DominoHalf, dominoEntry);
+            removeDomino(originalcell1DominoHalf, originalcell2DominoHalf, dominoEntry.domino);
             const definitePlacements = [];
             for (const placement of root.definitePlacements) {
                 let dominoElement = dominoMap.get(JSON.stringify(placement.domino));
                 dominoElement.style.background = 'grey';
                 dominoElement.style.border = 'none';
-                definitePlacements.push(putDominoOnBoard(placement, true));
+                definitePlacements.push([...putDominoOnBoard(placement, FOLLOWINGPLACEMENT), placement.domino]);
             }
-            const [cell1DominoHalf, cell2DominoHalf] = putDominoOnBoard(root.value, true);
+            const [cell1DominoHalf, cell2DominoHalf] = putDominoOnBoard(root.value, INCORRECT);
             await dfs(root);
-            removeDomino(cell1DominoHalf, cell2DominoHalf, root.value);
+            removeDomino(cell1DominoHalf, cell2DominoHalf, root.value.domino);
             for (const placement of definitePlacements) {
-                removeDomino(placement[0], placement[1], root.definitePlacements[placement]);
+                removeDomino(placement[0], placement[1], placement[2]);
             }
         }
         nextForWrongPath.style.display = 'none';
@@ -380,17 +398,21 @@ const clickNext = async () => {
 }
 nextButton.addEventListener('click', clickNext);
 
-const removeDomino = (cell1DominoHalf, cell2DominoHalf, dominoEntry) => {
+const removeDomino = (cell1DominoHalf, cell2DominoHalf, domino) => {
     cell1DominoHalf.remove();
     cell2DominoHalf.remove();
-    let dominoElement = dominoMap.get(JSON.stringify(dominoEntry.domino));
+    let dominoElement = dominoMap.get(JSON.stringify(domino));
     dominoElement.style.background = 'white';
     dominoElement.style.border = '1px solid black'
-    createHalves(dominoElement, dominoEntry.domino);
+    createHalves(dominoElement, domino);
 }
 
 
-const putDominoOnBoard = (dominoEntry, incorrectPlacement = false) => {
+const NORMAL = 'normal';
+const INCORRECT = 'incorrect';
+const FOLLOWINGPLACEMENT = 'following placement';
+
+const putDominoOnBoard = (dominoEntry, placementType = NORMAL) => {
     const dominoElement = dominoMap.get(JSON.stringify(dominoEntry.domino));
 
     /*
@@ -433,8 +455,8 @@ const putDominoOnBoard = (dominoEntry, incorrectPlacement = false) => {
     const cell2DominoHalf = document.createElement('div');
     cell2DominoHalf.classList.add('domino-half');
 
-    const backgroudColor = incorrectPlacement ? 'black' : 'white'
-    const pipsColor = incorrectPlacement ? 'white' : 'black';
+    const backgroudColor = placementType === INCORRECT ? 'black' : placementType === NORMAL ? 'white' : 'red';
+    const pipsColor = placementType === INCORRECT ? 'white' : placementType === NORMAL ? 'black' : 'black';
     // Set up both cells
     for (const cell of [cell1DominoHalf, cell2DominoHalf]) {
         cell.style.backgroundColor = backgroudColor;

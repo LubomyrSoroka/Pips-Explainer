@@ -357,7 +357,7 @@ const lookAhead = (leastOptionsPlacement) => {
             this.parent = parent;
             this.children = [];
             this.invalid = false;
-            this.definitePlacemnents = [];
+            this.definitePlacements = [];
         }
     }
     const numberRootNodes = leastOptionsPlacement.length;
@@ -476,7 +476,6 @@ const lookAhead = (leastOptionsPlacement) => {
         }
 
         roots[i].definitePlacements = [...(result?.foundPlacements || [])];
-
 
         leastOptionsPlacement = result?.possiblePlacements;
         roots[i].children = leastOptionsPlacement.map(placement => new TreeNode(placement));
@@ -837,8 +836,8 @@ const isOutOfBounds = (row, col) => {
 
 //await fetch('https://www.nytimes.com/games/pips/easy');
 
-const date = new Date('2026-08-25T00:00:00Z'); // leave the part after T to ensure that this is in UTC. That way when converting the date to string, it doesn't change based on your timezone.
-const difficulty = EASY;
+const date = new Date('2026-09-22T00:00:00Z'); // leave the part after T to ensure that this is in UTC. That way when converting the date to string, it doesn't change based on your timezone.
+const difficulty = MEDIUM;
 const allData = await fetch(`https://www.nytimes.com/svc/pips/v1/${date.toISOString().split('T')[0]}.json`, {
     headers: {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/[IP_ADDRESS] Safari/537.36'
@@ -862,7 +861,7 @@ console.dir(board, { depth: null })
 
 const runRules = (silenced = false) => {
     let result = runUntilNoDefinitePlacements(silenced);
-    if (!result?.foundPlacements && result !== INVALID_ARRANGEMENT) {
+    if (result !== INVALID_ARRANGEMENT && result.foundPlacements.length === 0) {
         updateSumMultipleOfSixAndZeroes();
         result = updateDominoPartCounts();
         if (result !== INVALID_ARRANGEMENT) {
@@ -875,12 +874,18 @@ const runRules = (silenced = false) => {
 
 const runUntilNoDefinitePlacements = (silenced) => {
     let result = null;
+    const allFoundPlacements = [];
     do {
         result = rule_canOnlyBePlacedByOneDomino(dominoes, silenced);
+        if (result !== INVALID_ARRANGEMENT)
+            allFoundPlacements.push(...result.foundPlacements);
         // What is this even doing result.possiblePlacements will always be true (empty array is true in js).
         //} while (!result?.possiblePlacements && result !== INVALID_ARRANGEMENT && canPlaceDomino());
         // keep doing it while the number of found placements is greater than 0
+
     } while (result !== INVALID_ARRANGEMENT && result.foundPlacements.length > 0 && canPlaceDomino());
+    if (result !== INVALID_ARRANGEMENT)
+        result.foundPlacements = allFoundPlacements;
     return result;
 }
 
