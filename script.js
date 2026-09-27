@@ -64,19 +64,19 @@ function getRegionMap(board) {
 
 const regionToColor = new Map();
 const colors = new Set(['red', 'green', 'blue', 'purple', 'orange']);
-const getNeighbouringRegions = (region) => {
+const getNeighbouringRegions = (region, regionIndex) => {
     const neighbourSet = new Set()
     for (const [row, col] of region.indices) {
-        if (indicesToRegion.get(`${row + 1},${col}`) && indicesToRegion.get(`${row + 1},${col}`) !== region)
+        if (indicesToRegion.get(`${row + 1},${col}`) !== undefined && indicesToRegion.get(`${row + 1},${col}`) !== regionIndex)
             neighbourSet.add(indicesToRegion.get(`${row + 1},${col}`));
 
-        if (indicesToRegion.get(`${row - 1},${col}`) && indicesToRegion.get(`${row - 1},${col}`) !== region)
+        if (indicesToRegion.get(`${row - 1},${col}`) !== undefined && indicesToRegion.get(`${row - 1},${col}`) !== regionIndex)
             neighbourSet.add(indicesToRegion.get(`${row - 1},${col}`));
 
-        if (indicesToRegion.get(`${row},${col + 1}`) && indicesToRegion.get(`${row},${col + 1}`) !== region)
+        if (indicesToRegion.get(`${row},${col + 1}`) !== undefined && indicesToRegion.get(`${row},${col + 1}`) !== regionIndex)
             neighbourSet.add(indicesToRegion.get(`${row},${col + 1}`));
 
-        if (indicesToRegion.get(`${row},${col - 1}`) && indicesToRegion.get(`${row},${col - 1}`) !== region)
+        if (indicesToRegion.get(`${row},${col - 1}`) !== undefined && indicesToRegion.get(`${row},${col - 1}`) !== regionIndex)
             neighbourSet.add(indicesToRegion.get(`${row},${col - 1}`));
     }
 
@@ -90,7 +90,7 @@ const setColors = () => {
             regionToColor.set(regionIndex, null)
             return;
         }
-        const neighbourSet = getNeighbouringRegions(region);
+        const neighbourSet = getNeighbouringRegions(region, regionIndex);
         const neighborColors = new Set(Array.from(neighbourSet).map(neighborIndex => regionToColor.get(neighborIndex)))
         const availableColors = colors.difference(neighborColors);
         const regionColor = [...availableColors][Math.floor(Math.random() * availableColors.size)];

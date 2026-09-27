@@ -121,6 +121,7 @@ const getBoardCoords = (board) => {
     return
 }
 
+
 const DOWN = 'down'
 const UP = 'up'
 const LEFT = 'left'
@@ -351,6 +352,7 @@ const lookAhead = (leastOptionsPlacement) => {
     let validOption = null;
     const originalConditionsPointer = indicesToRegion;
     const originalRegionsPointer = regions;
+    let lastAddedToFinalSolution = [];
 
     class TreeNode {
         constructor(value, parent = null) {
@@ -446,7 +448,7 @@ const lookAhead = (leastOptionsPlacement) => {
                     flipped: validOption.flipped
                 }
 
-                const reasoning = `Added domino because all other root nodes are invalid at this cell: ${validOption.cell} (through performing depth ${depth} search)`;
+                const reasoning = `Added domino because all other root nodes are invalid at this cell: ${validOption.cell} (through performing depth ${depth} search) `;
                 // console.log(reasoning);
                 // console.dir(dominoEntry, { depth: null });
                 // need to save the incorrect paths to show why they are wrong.
@@ -475,13 +477,14 @@ const lookAhead = (leastOptionsPlacement) => {
             if (!canPlaceDomino()) {
                 let currentNode = roots[i];
                 const previousPlacements = [];
+                lastAddedToFinalSolution = [];
 
                 do {
                     previousPlacements.push(currentNode.value);
                     currentNode = currentNode.parent;
                 } while (currentNode && !finalSolution.some(entry => entry.dominoEntry.domino === currentNode.value.domino));
 
-                finalSolution.push(...(previousPlacements).map(placement => {
+                lastAddedToFinalSolution.push(...(previousPlacements).map(placement => {
                     return {
                         dominoEntry: placement,
                         reasoning: 'guess'
@@ -490,14 +493,14 @@ const lookAhead = (leastOptionsPlacement) => {
 
                 // console.log(`Solution ${solutionCount++} After trying the following placements: ${JSON.stringify(previousPlacements, null, 2)}`);
                 // console.log(`found Placements ${JSON.stringify(result?.foundPlacements, null, 2)}`)
-                finalSolution.push(...(result?.foundPlacements).map(placement => {
+                lastAddedToFinalSolution.push(...(result?.foundPlacements).map(placement => {
                     return {
                         dominoEntry: placement,
                         reasoning: reasoningOnlyOneDomino
                     }
                 }));
                 // uncomment this to return only the first solution.
-                return { foundPlacements: [...result?.foundPlacements] };
+                // return { foundPlacements: [...result?.foundPlacements] };
             }
         }
 
@@ -508,6 +511,11 @@ const lookAhead = (leastOptionsPlacement) => {
         roots[i].children.forEach(child => { child.parent = roots[i] });
         roots.push(...roots[i].children);
     }
+
+    if (canPlaceDomino()) {
+        finalSolution.push(...lastAddedToFinalSolution);
+    }
+
     console.log(`${solutionCount} solutions found.`);
 }
 
@@ -862,7 +870,7 @@ const isOutOfBounds = (row, col) => {
 
 //await fetch('https://www.nytimes.com/games/pips/easy');
 
-const date = new Date('2026-09-22T00:00:00Z'); // leave the part after T to ensure that this is in UTC. That way when converting the date to string, it doesn't change based on your timezone.
+const date = new Date('2026-09-24T00:00:00Z'); // leave the part after T to ensure that this is in UTC. That way when converting the date to string, it doesn't change based on your timezone.
 const difficulty = MEDIUM;
 const allData = await fetch(`https://www.nytimes.com/svc/pips/v1/${date.toISOString().split('T')[0]}.json`, {
     headers: {
@@ -937,7 +945,7 @@ let iterations = 0;
 while (canPlaceDomino() && iterations++ < MAX_ITERATIONS) {
     result = runRules()
     //if (!(result?.foundPlacements || result.foundPlacements.length === 1) && result !== INVALID_ARRANGEMENT) {
-    if (result?.foundPlacements && result.foundPlacements.length === 0) {
+    if (result?.foundPlacements && result.foundPlacements.length === 0 && result?.possiblePlacements && result?.possiblePlacements.length > 0) {
         // remove the conditions from updating equals if it isn't necessary?
         result = lookAhead(result.possiblePlacements);
     }
