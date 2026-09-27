@@ -178,6 +178,7 @@ const canPlaceDomino = () => {
 //     return placeArea;
 // }
 
+const reasoningOnlyOneDomino = "Added domino in this position through rule_canOnlyBePlacedByOneDomino";
 let foundDominoes = [];
 const rule_canOnlyBePlacedByOneDomino = (dominoes, silenced = false) => {
     const foundAreasAndDominoes = [];
@@ -299,9 +300,8 @@ const rule_canOnlyBePlacedByOneDomino = (dominoes, silenced = false) => {
                     flipped: validFlipped
                 }
                 if (!silenced) {
-                    const reasoning = "Added domino in this position through rule_canOnlyBePlacedByOneDomino";
                     // console.log("added domino", dominoEntry)
-                    finalSolution.push({ dominoEntry, reasoning });
+                    finalSolution.push({ dominoEntry, reasoning: reasoningOnlyOneDomino });
                 }
 
                 foundAreasAndDominoes.push(dominoEntry);
@@ -312,7 +312,8 @@ const rule_canOnlyBePlacedByOneDomino = (dominoes, silenced = false) => {
             else if (validCount === 0) {
                 indicesToRegion = originalConditionsPointer;
                 regions = originalRegionsPointer;
-                return INVALID_ARRANGEMENT;
+
+                return { type: INVALID_ARRANGEMENT, cells: [[i, j]], reason: `No domino can fit in this cell`, lastPlacements: foundAreasAndDominoes };
             }
         }
     }
@@ -358,6 +359,8 @@ const lookAhead = (leastOptionsPlacement) => {
             this.children = [];
             this.invalid = false;
             this.definitePlacements = [];
+            this.cells = null;
+            this.reason = null;
         }
     }
     const numberRootNodes = leastOptionsPlacement.length;
@@ -394,9 +397,19 @@ const lookAhead = (leastOptionsPlacement) => {
         // I think I could optimize this...
 
         let result = runRules(true) // if any of the rules fail, then this option must not be possible
-        if (result === INVALID_ARRANGEMENT) {
+        if (result?.type === INVALID_ARRANGEMENT) {
+
+
             roots[i].invalid = true;
             let rootToCheck = roots[i];
+            // if (rootToCheck.parent) {
+            //     rootToCheck.parent.cells = result?.cells;
+            //     rootToCheck.parent.reason = result?.reason;
+            // }
+            roots[i].cells = result?.cells;
+            roots[i].reason = result?.reason;
+            roots[i].definitePlacements = result?.foundPlacements;
+
             do {
                 if (rootToCheck.parent && rootToCheck.parent.children.every(child => child.invalid)) {
                     rootToCheck.parent.invalid = true;
@@ -462,16 +475,29 @@ const lookAhead = (leastOptionsPlacement) => {
             if (!canPlaceDomino()) {
                 let currentNode = roots[i];
                 const previousPlacements = [];
+
                 do {
                     previousPlacements.push(currentNode.value);
                     currentNode = currentNode.parent;
-                } while (currentNode);
+                } while (currentNode && !finalSolution.some(entry => entry.dominoEntry.domino === currentNode.value.domino));
 
-                console.log(`Solution ${solutionCount++} After trying the following placements: ${JSON.stringify(previousPlacements, null, 2)}`);
+                finalSolution.push(...(previousPlacements).map(placement => {
+                    return {
+                        dominoEntry: placement,
+                        reasoning: 'guess'
+                    }
+                }));
 
-                console.log(`found Placements ${JSON.stringify(result?.foundPlacements, null, 2)}`)
+                // console.log(`Solution ${solutionCount++} After trying the following placements: ${JSON.stringify(previousPlacements, null, 2)}`);
+                // console.log(`found Placements ${JSON.stringify(result?.foundPlacements, null, 2)}`)
+                finalSolution.push(...(result?.foundPlacements).map(placement => {
+                    return {
+                        dominoEntry: placement,
+                        reasoning: reasoningOnlyOneDomino
+                    }
+                }));
                 // uncomment this to return only the first solution.
-                //return { foundPlacements: [...result?.foundPlacements] };
+                return { foundPlacements: [...result?.foundPlacements] };
             }
         }
 
@@ -737,7 +763,7 @@ const updateEqualsRegions = () => {
                 }
             }
             else if (numberOfPossibleValues === 0)
-                return INVALID_ARRANGEMENT;
+                return { type: INVALID_ARRANGEMENT, cells: entry.indices, reason: `equals region has no valid values` };
         }
     }
 }
@@ -762,7 +788,7 @@ const updateDominoPartCounts = () => {
                 dominoPartCounts[5] -= 1;
             }
             if (Object.values(dominoPartCounts).some(val => val < 0))
-                return INVALID_ARRANGEMENT;
+                return { type: INVALID_ARRANGEMENT, reason: `One of the domino part counts is below 0: ${JSON.stringify(dominoPartCounts)}` };
         }
     }
     //console.log(dominoPartCounts);
@@ -861,10 +887,10 @@ console.dir(board, { depth: null })
 
 const runRules = (silenced = false) => {
     let result = runUntilNoDefinitePlacements(silenced);
-    if (result !== INVALID_ARRANGEMENT && result.foundPlacements.length === 0) {
+    if (result?.type !== INVALID_ARRANGEMENT && result.foundPlacements.length === 0) {
         updateSumMultipleOfSixAndZeroes();
         result = updateDominoPartCounts();
-        if (result !== INVALID_ARRANGEMENT) {
+        if (result?.type !== INVALID_ARRANGEMENT) {
             updateEqualsRegions();
             result = runUntilNoDefinitePlacements(silenced);
         }
@@ -877,15 +903,17 @@ const runUntilNoDefinitePlacements = (silenced) => {
     const allFoundPlacements = [];
     do {
         result = rule_canOnlyBePlacedByOneDomino(dominoes, silenced);
-        if (result !== INVALID_ARRANGEMENT)
+        if (result?.type !== INVALID_ARRANGEMENT)
             allFoundPlacements.push(...result.foundPlacements);
         // What is this even doing result.possiblePlacements will always be true (empty array is true in js).
         //} while (!result?.possiblePlacements && result !== INVALID_ARRANGEMENT && canPlaceDomino());
         // keep doing it while the number of found placements is greater than 0
 
-    } while (result !== INVALID_ARRANGEMENT && result.foundPlacements.length > 0 && canPlaceDomino());
-    if (result !== INVALID_ARRANGEMENT)
-        result.foundPlacements = allFoundPlacements;
+    } while (result?.type !== INVALID_ARRANGEMENT && result.foundPlacements.length > 0 && canPlaceDomino());
+
+    allFoundPlacements.push(...(result?.lastPlacements || []));
+
+    result.foundPlacements = allFoundPlacements;
     return result;
 }
 
@@ -913,7 +941,7 @@ while (canPlaceDomino() && iterations++ < MAX_ITERATIONS) {
         // remove the conditions from updating equals if it isn't necessary?
         result = lookAhead(result.possiblePlacements);
     }
-    if (result === INVALID_ARRANGEMENT)
+    if (result?.type === INVALID_ARRANGEMENT)
         break;
 }
 
