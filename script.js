@@ -5,6 +5,7 @@ import { finalSolution } from "./explainer.js"
 import { getOtherIndex } from "./explainer.js";
 import { invalidRoots } from "./explainer.js";
 import { initialDominoPartCounts } from "./explainer.js";
+import { pipCountToHtml } from "./pip-html.js";
 
 
 const setPartCounts = () => {
@@ -289,8 +290,11 @@ const createHalves = (dominoElement, domino) => {
     const leftSide = document.createElement('div');
     const rightSide = document.createElement('div');
     leftSide.style.borderRight = '1px solid black';
-    leftSide.textContent = domino[0];
-    rightSide.textContent = domino[1];
+    if(domino[0] !== 0)
+        leftSide.innerHTML = pipCountToHtml[domino[0]];
+    if(domino[1] !== 0)
+        rightSide.innerHTML = pipCountToHtml[domino[1]];
+
     leftSide.classList.add('pips');
     rightSide.classList.add('pips');
     dominoMap.set(JSON.stringify(domino), dominoElement);
@@ -547,7 +551,7 @@ const putDominoOnBoard = (dominoEntry, placementType = NORMAL) => {
     // Set up both cells
     for (const cell of [cell1DominoHalf, cell2DominoHalf]) {
         cell.style.backgroundColor = backgroudColor;
-        cell.style.color = pipsColor;
+        cell.style.color = pipsColor; // don't think this will do anything
         cell.style.borderTop = `2px solid ${pipsColor}`;
         cell.style.borderBottom = `2px solid ${pipsColor}`;
         cell.style.borderRight = `2px solid ${pipsColor}`;
@@ -559,13 +563,21 @@ const putDominoOnBoard = (dominoEntry, placementType = NORMAL) => {
     }
 
     // Add the domino values
-    cell1DominoHalf.append(
-        dominoEntry.domino[dominoEntry.flipped ? 1 : 0]
-    );
+    // cell1DominoHalf.append(
+    //     dominoEntry.domino[dominoEntry.flipped ? 1 : 0]
+    // );
+    // cell2DominoHalf.append(
+    //     dominoEntry.domino[dominoEntry.flipped ? 0 : 1]
+    // );
 
-    cell2DominoHalf.append(
-        dominoEntry.domino[dominoEntry.flipped ? 0 : 1]
-    );
+    cell1DominoHalf.style.setProperty('--pip-color', pipsColor);
+    cell2DominoHalf.style.setProperty('--pip-color', pipsColor);
+    if(dominoEntry.domino[dominoEntry.flipped ? 1 : 0] !== 0)
+        cell1DominoHalf.innerHTML = pipCountToHtml[dominoEntry.domino[dominoEntry.flipped ? 1 : 0]]
+    if(dominoEntry.domino[dominoEntry.flipped ? 0 : 1] !== 0)
+        cell2DominoHalf.innerHTML = pipCountToHtml[dominoEntry.domino[dominoEntry.flipped ? 0 : 1]]
+
+
 
     // Remove the border between the two cells
     switch (dominoEntry.direction) {

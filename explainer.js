@@ -137,6 +137,9 @@ const checkRequiresDouble = () => {
         if (region.type === 'equals') {
             checkRequiresDoubleOuterLoop: for (const [i, j] of region.indices) {
                 const validDirections = validCellsToDirections.get(`${i},${j}`);
+                if(!validDirections)
+                    continue;
+
                 for (const validDirection of validDirections) {
                     const otherIndex = getOtherIndex([i, j], validDirection);
                     // if the other index is outside of the region
@@ -861,7 +864,7 @@ const isOutOfBounds = (row, col) => {
 //await fetch('https://www.nytimes.com/games/pips/easy');
 
 const date = new Date('2026-08-17T00:00:00Z'); // leave the part after T to ensure that this is in UTC. That way when converting the date to string, it doesn't change based on your timezone.
-const difficulty = HARD;
+const difficulty = MEDIUM;
 const allData = await fetch(`https://www.nytimes.com/svc/pips/v1/${date.toISOString().split('T')[0]}.json`, {
     headers: {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/[IP_ADDRESS] Safari/537.36'

@@ -6,6 +6,7 @@
     --border-width: 2px;
     --badge-length: 30px;
     --border-radius: 10px;
+    --circle-diametre: 8px;
 }
 
 body {
@@ -56,9 +57,10 @@ body {
 .pips {
     width: 60px;
     height: 60px;
-    display: flex;
+    /* display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: center; */
+    position: relative;
 }
 
 .cell {
@@ -183,4 +185,11 @@ body {
 .type-symbol {
     font-size: 14px;
     margin-left: 2px;
+}
+
+.circle{
+    border-radius: 50%;
+    width: var(--circle-diametre);
+    height: var(--circle-diametre);
+    background-color: var(--pip-color, black);
 }
