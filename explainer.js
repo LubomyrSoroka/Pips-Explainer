@@ -64,6 +64,15 @@ export const finalSolution = [];
 export const invalidRoots = new Map();
 export let done = false;
 
+const hasDouble = {
+    0: false,
+    1: false,
+    2: false,
+    3: false,
+    4: false,
+    5: false,
+    6: false
+}
 
 let dominoPartCounts = {
     0: 0,
@@ -116,9 +125,29 @@ const getBoardCoords = (board) => {
     dominoes.forEach(domino => {
         dominoPartCounts[domino[0]] += 1;
         dominoPartCounts[domino[1]] += 1;
+        if (domino[0] === domino[1])
+            hasDouble[domino[0]] = true;
     })
     initialDominoPartCounts = { ...dominoPartCounts }
     return
+}
+
+const checkRequiresDouble = () => {
+    for (const region of regions) {
+        if (region.type === 'equals') {
+            checkRequiresDoubleOuterLoop: for (const [i, j] of region.indices) {
+                const validDirections = validCellsToDirections.get(`${i},${j}`);
+                for (const validDirection of validDirections) {
+                    const otherIndex = getOtherIndex([i, j], validDirection);
+                    // if the other index is outside of the region
+                    if (!region.indices.map(index => `${index[0]},${index[1]}`).includes(`${otherIndex[0]},${otherIndex[1]}`))
+                        continue checkRequiresDoubleOuterLoop; // then this is not a cell such that all directions are within the region.
+                }
+                region.requiresDouble = true;
+                break;
+            }
+        }
+    }
 }
 
 
@@ -139,6 +168,7 @@ const CONNECTED = 'connected';
 const canPlaceDomino = () => {
     return dominoes.length > foundDominoes.length;
 }
+
 // this rule rarely helps...
 // dominoes is a 2D array. Each inner array is a pair of values, where the top value is the left of the domino and the bottom is the right of the domino (as they are shown horizontally when opening the game)
 // const rule_canOnlyBePlacedInOneArea = (dominoes) => {
@@ -179,6 +209,65 @@ const canPlaceDomino = () => {
 //     return placeArea;
 // }
 
+// map from each cell to the directions that this cell can take
+let validCellsToDirections = new Map();
+const cellCoordinatesToIgnore = new Set();
+let updatedStructureOnce = false;
+
+const updateStructure = () => {
+    // find all placements which can only take one value.
+    // put a fake domino there and repeat this process until you can't find any more guaranteed placemnets or have no more dominoes to fill on the board.
+
+    // need to update: if in all other directions no domino satifies the conditions (so there are only dominoes that satisfy the conditions of the cell in one direction).
+    // then you know the direction of the cell and can update other cells accordingly.
+    const originalValidIndices = new Set(validIndices);
+    let hasOneDirectionCell = false;
+    do {
+        hasOneDirectionCell = false;
+        for (const [i, j] of Array.from(validIndices).map(indices => indices.split(',').map(Number))) {
+            if (updatedStructureOnce && (!validCellsToDirections.get(`${i},${j}`) || validCellsToDirections.get(`${i},${j}`).length === 1)) {
+                continue;
+            }
+            if (cellCoordinatesToIgnore.has(`${i},${j}`)) {
+                continue;
+            }
+            const additions = [[DOWN, 1, 0], [UP, -1, 0], [LEFT, 0, -1], [RIGHT, 0, 1]]
+            let validDirectionCount = 0;
+            let otherIndex = null;
+            const otherIndices = [];
+            const validDirections = [];
+            let validOtherIndex = null;
+
+            for (const [direction, deltaRow, deltaCol] of additions) {
+                otherIndex = [i + deltaRow, j + deltaCol];
+                //if (!cellCoordinatesToIgnore.get(`${i},${j}`)?.has(`${otherIndex[0]},${otherIndex[1]}`)) {
+                if (isOutOfBounds(i + deltaRow, j + deltaCol))
+                    continue;
+                validDirectionCount += 1;
+                validOtherIndex = [...otherIndex];
+                validDirections.push(direction);
+                otherIndices.push(otherIndex);
+                //}
+            }
+            if (validDirectionCount === 1) {
+                validIndices.delete(`${i},${j}`)
+                validIndices.delete(`${validOtherIndex[0]},${validOtherIndex[1]}`)
+                validCellsToDirections.delete(`${validOtherIndex[0]},${validOtherIndex[1]}`)
+                hasOneDirectionCell = true;
+                cellCoordinatesToIgnore.add(`${validOtherIndex[0]},${validOtherIndex[1]}`);
+            }
+            // else if (validDirectionCount === 0) {
+            //     // then you must've already put a domino here?
+            //     continue;
+            // }
+            validCellsToDirections.set(`${i},${j}`, validDirections);
+        }
+    } while (hasOneDirectionCell);
+    updatedStructureOnce = true;
+    validIndices = new Set(originalValidIndices);
+}
+
+
 const reasoningOnlyOneDomino = "Added domino in this position through rule_canOnlyBePlacedByOneDomino";
 let foundDominoes = [];
 const rule_canOnlyBePlacedByOneDomino = (dominoes, silenced = false) => {
@@ -188,142 +277,123 @@ const rule_canOnlyBePlacedByOneDomino = (dominoes, silenced = false) => {
 
     const originalConditionsPointer = indicesToRegion;
     const originalRegionsPointer = regions;
+    const originalValidCellsToDirections = validCellsToDirections;
     let minPossiblePlacementsCount = Infinity;
 
-    for (let i = rowMin; i <= rowMax; ++i) {
-        nextCell: for (let j = colMin; j <= colMax; ++j) {
-            if (isOutOfBounds(i, j))
+    nextCell: for (const [i, j] of Array.from(validCellsToDirections.keys()).map(key => key.split(',').map(Number))) {
+        // this should check that you aren't placing the domino on a cell that already has a domino on it (not really checking that you're placing something out of bounds) 
+        if (!validCellsToDirections.get(`${i},${j}`) || isOutOfBounds(i, j))
+            continue;
+
+        let validCount = 0;
+        let validDomino = null;
+        let validDirection = null;
+        let validFlipped = null;
+        possibleDominoPlacementsCurrent = [];
+        const validDirections = validCellsToDirections.get(`${i},${j}`);
+
+        outerLoop: for (const domino of dominoes) {
+            // this doesn't account for the case where you have the same domino twice (rare)
+            if (foundDominoes.includes(domino))
                 continue;
-            let validCount = 0;
-            let validDomino = null;
-            let validDirection = null;
-            let validFlipped = null;
-            possibleDominoPlacementsCurrent = [];
-            // need to make a copy this way, since you want a deep copy
-            //const originalConditions = JSON.stringify(indicesToRegion);
-            let validDirections = [DOWN, UP, LEFT, RIGHT];
+            let flipCount = 2;
+            if (domino[0] === domino[1])
+                flipCount = 1
+            else if (validDirections.length === 1) {
+                const key = `${i},${j}`;
+                const otherIndices = getOtherIndex([i, j], validDirections[0]);
+                const key2 = otherIndices.join(',');
 
-            validDirections = validDirections.filter(direction => {
-                if (direction === DOWN) {
-                    return !isOutOfBounds(i + 1, j) && !createsOddCountArea([i, j], DOWN);
-                    //return !isOutOfBounds(i + 1, j);
-                }
-                if (direction === UP) {
-                    return !isOutOfBounds(i - 1, j) && !createsOddCountArea([i, j], UP);
-                    //return !isOutOfBounds(i - 1, j);
-                }
-                if (direction === LEFT) {
-                    return !isOutOfBounds(i, j - 1) && !createsOddCountArea([i, j], LEFT);
-                    //return !isOutOfBounds(i, j - 1);
-                }
-                if (direction === RIGHT) {
-                    return !isOutOfBounds(i, j + 1) && !createsOddCountArea([i, j], RIGHT);
-                    //return !isOutOfBounds(i, j + 1);
-                }
-            })
-            // I'm not entirely sure about this. The original idea was that this rule should only apply to corners or to places where only one cell could fit.
-            // if (validDirections.length > 2)
-            //     continue;
-            outerLoop: for (const domino of dominoes) {
-                // this doesn't account for the case where you have the same domino twice (rare)
-                if (foundDominoes.includes(domino))
+                // should be able to get rid of the JSON.stringify here
+                if (JSON.stringify(indicesToRegion[key].indices) === JSON.stringify(indicesToRegion[key2].indices) || (indicesToRegion[key].type === 'empty' && indicesToRegion[key2].type === 'empty'))
+                    flipCount = 1;
+            }
+            for (let k = 0; k < flipCount; ++k) {
+                ({ indicesToRegion, regions } = structuredClone({ indicesToRegion: originalConditionsPointer, regions: originalRegionsPointer }));
+                if (!satisfiesRegionConditions(i, j, domino[k]))
                     continue;
-                let flipCount = 2;
-                if (domino[0] === domino[1])
-                    flipCount = 1
-                else if (validDirections.length === 1) {
-                    const key = `${i},${j}`;
-                    const otherIndices = getOtherIndex([i, j], validDirections[0]);
-                    const key2 = otherIndices.join(',');
-                    // if (indicesToRegion[key].type === 'sum' || indicesToRegion[key].type === 'set') {
-
-                    if (JSON.stringify(indicesToRegion[key].indices) === JSON.stringify(indicesToRegion[key2].indices) || (indicesToRegion[key].type === 'empty' && indicesToRegion[key2].type === 'empty'))
-                        flipCount = 1;
-                    //}
-                }
-                for (let k = 0; k < flipCount; ++k) {
-                    ({ indicesToRegion, regions } = structuredClone({ indicesToRegion: originalConditionsPointer, regions: originalRegionsPointer }));
-                    if (!satisfiesRegionConditions(i, j, domino[k]))
-                        continue;
 
 
-                    adjustConditions([{ cell: [i, j], value: domino[k] }])
+                adjustConditions([{ cell: [i, j], value: domino[k] }])
 
-                    for (const direction of validDirections) {
-                        // if there are only two options to consider (like in a corner) and only one of them is possible, then you must place the domino there.
-                        let result = check(i, j, domino, direction, k === 1);
+                for (const direction of validDirections) {
+                    // if there are only two options to consider (like in a corner) and only one of them is possible, then you must place the domino there.
+                    let result = check(i, j, domino, direction, k === 1);
 
-                        if (result === true) {
-                            validCount++;
-                            if (validCount > minPossiblePlacementsCount)
-                                continue nextCell;
-                            validDomino = domino;
-                            validDirection = direction;
-                            validFlipped = k === 1;
-                            const dominoEntry = {
-                                cell: [i, j],
-                                domino: validDomino,
-                                direction: validDirection,
-                                flipped: validFlipped
-                            }
-
-                            possibleDominoPlacementsCurrent.push(dominoEntry);
-
+                    if (result === true) {
+                        validCount++;
+                        if (validCount > minPossiblePlacementsCount)
+                            continue nextCell;
+                        validDomino = domino;
+                        validDirection = direction;
+                        validFlipped = k === 1;
+                        const dominoEntry = {
+                            cell: [i, j],
+                            domino: validDomino,
+                            direction: validDirection,
+                            flipped: validFlipped
                         }
+
+                        possibleDominoPlacementsCurrent.push(dominoEntry);
+
                     }
                 }
             }
+        }
 
-            // if you got here, then you didn't skip to the next cell in the grid because of too many possiblities.
-            if (validCount !== 1) {
-                minPossiblePlacementsCount = validCount;
-                possibleDominoPlacementsSmallest = [...possibleDominoPlacementsCurrent];
+        // if you got here, then you didn't skip to the next cell in the grid because of too many possiblities.
+        if (validCount !== 1) {
+            minPossiblePlacementsCount = validCount;
+            possibleDominoPlacementsSmallest = [...possibleDominoPlacementsCurrent];
+        }
+
+
+        // in certain cases, two options will be identical. E.g., if you have a sum with two cells that's blocked on all side, 
+        // then if you have a domino which equals that sum any side you flip it is equivalent
+        // more generally, if there is only one placement somewhere and it's in a sum, then flipping the domino won't do anything.
+        if (validCount === 1) {
+            indicesToRegion = originalConditionsPointer;
+            regions = originalRegionsPointer;
+            let otherIndices = getOtherIndex([i, j], validDirection);
+            let [index1, index2] = validFlipped ? [1, 0] : [0, 1];
+            adjustConditions([{ cell: [i, j], value: validDomino[index1] }, { cell: otherIndices, value: validDomino[index2] }]);
+            // this value is used for checking if something is out of bounds.
+            // but it is also used to check if a domino collides with another one.
+            validIndices.delete(`${i},${j}`);
+            validIndices.delete(`${otherIndices[0]},${otherIndices[1]}`);
+            updateStructure();
+            const dominoEntry = {
+                cell: [i, j],
+                domino: validDomino,
+                direction: validDirection,
+                flipped: validFlipped
+            }
+            if (!silenced) {
+                // console.log("added domino", dominoEntry)
+                finalSolution.push({ dominoEntry, reasoning: reasoningOnlyOneDomino });
             }
 
+            foundAreasAndDominoes.push(dominoEntry);
+            foundDominoes.push(validDomino);
+        }
+        // is it even necessary to check for the second condition in this or?
+        // if nothing is added, would it just be undefined?
+        else if (validCount === 0) {
+            indicesToRegion = originalConditionsPointer;
+            regions = originalRegionsPointer;
+            validCellsToDirections = originalValidCellsToDirections;
 
-            // in certain cases, two options will be identical. E.g., if you have a sum with two cells that's blocked on all side, 
-            // then if you have a domino which equals that sum any side you flip it is equivalent
-            // more generally, if there is only one placement somewhere and it's in a sum, then flipping the domino won't do anything.
-            if (validCount === 1) {
-                indicesToRegion = originalConditionsPointer;
-                regions = originalRegionsPointer;
-                let otherIndices = getOtherIndex([i, j], validDirection);
-                let [index1, index2] = validFlipped ? [1, 0] : [0, 1];
-                adjustConditions([{ cell: [i, j], value: validDomino[index1] }, { cell: otherIndices, value: validDomino[index2] }]);
-                // this value is used for checking if something is out of bounds.
-                // but it is also used to check if a domino collides with another one.
-                validIndices.delete(`${i},${j}`);
-                validIndices.delete(`${otherIndices[0]},${otherIndices[1]}`);
-                const dominoEntry = {
-                    cell: [i, j],
-                    domino: validDomino,
-                    direction: validDirection,
-                    flipped: validFlipped
-                }
-                if (!silenced) {
-                    // console.log("added domino", dominoEntry)
-                    finalSolution.push({ dominoEntry, reasoning: reasoningOnlyOneDomino });
-                }
-
-                foundAreasAndDominoes.push(dominoEntry);
-                foundDominoes.push(validDomino);
-            }
-            // is it even necessary to check for the second condition in this or?
-            // if nothing is added, would it just be undefined?
-            else if (validCount === 0) {
-                indicesToRegion = originalConditionsPointer;
-                regions = originalRegionsPointer;
-
-                return { type: INVALID_ARRANGEMENT, cells: [[i, j]], reason: `No domino can fit in this cell`, lastPlacements: foundAreasAndDominoes };
-            }
+            return { type: INVALID_ARRANGEMENT, cells: [[i, j]], reason: `No domino can fit in this cell`, lastPlacements: foundAreasAndDominoes };
         }
     }
+
     // if (foundAreasAndDominoes.length > 0)
     //     return { foundPlacements: foundAreasAndDominoes };
     // else
     //     return { possiblePlacements: possibleDominoPlacements };
     indicesToRegion = originalConditionsPointer;
     regions = originalRegionsPointer;
+    validCellsToDirections = originalValidCellsToDirections;
     return { foundPlacements: foundAreasAndDominoes, possiblePlacements: possibleDominoPlacementsSmallest };
 }
 
@@ -352,6 +422,7 @@ const lookAhead = (leastOptionsPlacement) => {
     let validOption = null;
     const originalConditionsPointer = indicesToRegion;
     const originalRegionsPointer = regions;
+    const originalValidCellsToDirections = validCellsToDirections;
     let lastAddedToFinalSolution = [];
 
     class TreeNode {
@@ -380,7 +451,7 @@ const lookAhead = (leastOptionsPlacement) => {
         ({ indicesToRegion, regions } = structuredClone({ indicesToRegion: originalConditionsPointer, regions: originalRegionsPointer }));
         validIndices = new Set(originalValidIndices);
         foundDominoes = [...originalFoundDominoes];
-
+        validCellsToDirections = structuredClone(originalValidCellsToDirections);
 
         let depth = 0;
 
@@ -394,6 +465,7 @@ const lookAhead = (leastOptionsPlacement) => {
             currentNode = currentNode.parent;
             ++depth;
         } while (currentNode);
+        updateStructure();
 
         // often, this just adds the same thing to both sides of the tree (since either placement results in the same next placement with min possiblities)
         // I think I could optimize this...
@@ -404,10 +476,6 @@ const lookAhead = (leastOptionsPlacement) => {
 
             roots[i].invalid = true;
             let rootToCheck = roots[i];
-            // if (rootToCheck.parent) {
-            //     rootToCheck.parent.cells = result?.cells;
-            //     rootToCheck.parent.reason = result?.reason;
-            // }
             roots[i].cells = result?.cells;
             roots[i].reason = result?.reason;
             roots[i].definitePlacements = result?.foundPlacements;
@@ -432,6 +500,7 @@ const lookAhead = (leastOptionsPlacement) => {
                 regions = originalRegionsPointer;
                 validIndices = new Set(originalValidIndices);
                 foundDominoes = [...originalFoundDominoes];
+                validCellsToDirections = structuredClone(originalValidCellsToDirections);
                 for (let j = 0; j < numberRootNodes; ++j) {
                     if (roots[j].invalid === false) {
                         validOption = roots[j].value;
@@ -463,8 +532,10 @@ const lookAhead = (leastOptionsPlacement) => {
                 validIndices.delete(validOptionAreaString);
                 validIndices.delete(`${otherIndices[0]},${otherIndices[1]}`);
 
+
                 // is this to the original indices pointer?
                 adjustConditions([{ cell: validOption.cell, value: validOption.domino[validOption.flipped ? 1 : 0] }, { cell: otherIndices, value: validOption.domino[validOption.flipped ? 0 : 1] }]);
+                updateStructure();
 
                 const result = { foundPlacements: [dominoEntry] }
                 return result;
@@ -550,91 +621,6 @@ const check = (row, col, domino, direction, flip) => {
         }
         return satisfiesRegionConditions(row, col + 1, dominoValue);
     }
-    return false;
-}
-
-const createsOddCountArea = ([i, j], direction) => {
-    // need to temporarily remove all cells from valid indices.
-
-    const validIndicesCopy = new Set(validIndices);
-    validIndices.delete(`${i},${j}`);
-
-    const key = JSON.stringify([i, j]) + direction;
-
-    const [k, l] = getOtherIndex([i, j], direction);
-    validIndices.delete(`${k},${l}`);
-
-    let cellsToCheck = null;
-    switch (direction) {
-        case UP:
-            cellsToCheck = [[i + 1, j], [i, j - 1], [i, j + 1], [k - 1, l], [k, l - 1], [k, l + 1]];
-            break;
-        case DOWN:
-            cellsToCheck = [[i - 1, j], [i, j - 1], [i, j + 1], [k + 1, l], [k, l - 1], [k, l + 1]];
-            break;
-        case LEFT:
-            cellsToCheck = [[i, j + 1], [i + 1, j], [i - 1, j], [k, l - 1], [k + 1, l], [k - 1, l]];
-            break;
-        case RIGHT:
-            cellsToCheck = [[i, j - 1], [i + 1, j], [i - 1, j], [k, l + 1], [k + 1, l], [k - 1, l]];
-            break;
-    }
-    // to find the number of connected components, we need to run BFS from every node and keep track of the nodes that were visited. 
-    // if a bfs finds a node that was already visited, then those two components must be connected.
-    const visitedNodes = new Set();
-    const bfs = (startingNode) => {
-        const queue = [startingNode];
-        let i = 0;
-        visitedNodes.add(JSON.stringify(startingNode));
-        while (i < queue.length) {
-            const neighbours = getNeighbours(queue[i]);
-            for (const neighbour of neighbours) {
-                if (!visitedNodes.has(JSON.stringify(neighbour)))
-                    visitedNodes.add(JSON.stringify(neighbour));
-            }
-            queue.push(...neighbours)
-            ++i;
-        }
-        return queue.length;
-    }
-
-    const getNeighbours = ([i, j]) => {
-        const neighbours = [];
-
-        if (!isOutOfBounds(i, j + 1) && !visitedNodes.has(JSON.stringify([i, j + 1]))) {
-            neighbours.push([i, j + 1]);
-        }
-
-        if (!isOutOfBounds(i, j - 1) && !visitedNodes.has(JSON.stringify([i, j - 1]))) {
-            neighbours.push([i, j - 1]);
-        }
-
-        if (!isOutOfBounds(i + 1, j) && !visitedNodes.has(JSON.stringify([i + 1, j]))) {
-            neighbours.push([i + 1, j]);
-        }
-
-        if (!isOutOfBounds(i - 1, j) && !visitedNodes.has(JSON.stringify([i - 1, j]))) {
-            neighbours.push([i - 1, j]);
-        }
-        return neighbours;
-    }
-
-    for (const node of cellsToCheck) {
-        if (isOutOfBounds(node[0], node[1]) || visitedNodes.has(JSON.stringify(node)))
-            continue;
-
-        const result = bfs(node);
-        if (result !== CONNECTED && result % 2 === 1) {
-            // if this is a disconnected part
-            // and it has an odd number of cells, then this is an odd count area
-            validIndices = validIndicesCopy;
-            return true;
-        }
-    }
-    // if every node is next to a space with an even amount of cells, then this is not an odd count area
-    validIndices = validIndicesCopy;
-    //prevValuesOddCountAreas[key] = false;
-
     return false;
 }
 
@@ -827,6 +813,10 @@ const satisfiesRegionConditions = (row, col, dominoPart) => {
     else if (regionCondition.type === 'equals') {
         // if we have determined that there are only certain values that the equals can contain, then check if this value is one of them.
         // e.g. if you have an equals region with 4 cells, but you have 4 0's and 5 1's and less than 4 everything else, it must be either 4 or 5.
+        if (regionCondition?.requiresDouble) {
+            if (!hasDouble[dominoPart])
+                return false
+        }
         if (regionCondition.target) {
             return regionCondition.target.has(dominoPart);
         }
@@ -870,8 +860,8 @@ const isOutOfBounds = (row, col) => {
 
 //await fetch('https://www.nytimes.com/games/pips/easy');
 
-const date = new Date('2026-09-24T00:00:00Z'); // leave the part after T to ensure that this is in UTC. That way when converting the date to string, it doesn't change based on your timezone.
-const difficulty = MEDIUM;
+const date = new Date('2026-08-17T00:00:00Z'); // leave the part after T to ensure that this is in UTC. That way when converting the date to string, it doesn't change based on your timezone.
+const difficulty = HARD;
 const allData = await fetch(`https://www.nytimes.com/svc/pips/v1/${date.toISOString().split('T')[0]}.json`, {
     headers: {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/[IP_ADDRESS] Safari/537.36'
@@ -926,6 +916,8 @@ const runUntilNoDefinitePlacements = (silenced) => {
 }
 
 getBoardCoords(board);
+updateStructure();
+checkRequiresDouble();
 
 // updateSumMultipleOfSixAndZeroes();
 // updateCellCounts();

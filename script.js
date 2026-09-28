@@ -79,9 +79,7 @@ const getNeighbouringRegions = (region, regionIndex) => {
         if (indicesToRegion.get(`${row},${col - 1}`) !== undefined && indicesToRegion.get(`${row},${col - 1}`) !== regionIndex)
             neighbourSet.add(indicesToRegion.get(`${row},${col - 1}`));
     }
-
     return neighbourSet;
-
 }
 
 const setColors = () => {
