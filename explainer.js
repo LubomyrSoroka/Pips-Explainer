@@ -246,10 +246,23 @@ const updateStructure = () => {
                 //if (!cellCoordinatesToIgnore.get(`${i},${j}`)?.has(`${otherIndex[0]},${otherIndex[1]}`)) {
                 if (isOutOfBounds(i + deltaRow, j + deltaCol))
                     continue;
-                validDirectionCount += 1;
-                validOtherIndex = [...otherIndex];
-                validDirections.push(direction);
-                otherIndices.push(otherIndex);
+                let hasValid = false;
+
+                outerDominoLoop: for(const domino of dominoes){
+                    for(const flip of [0, 1]){
+                        if(!satisfiesRegionConditions(i, j, flip ? domino[1] : domino[0]))
+                            continue;
+                        hasValid = check(i, j, domino, direction, flip);
+                        if(hasValid)
+                            break outerDominoLoop;
+                    }
+                }
+                if(hasValid){
+                    validDirectionCount += 1;
+                    validOtherIndex = [...otherIndex];
+                    validDirections.push(direction);
+                    otherIndices.push(otherIndex);
+                }
                 //}
             }
             if (validDirectionCount === 1) {
@@ -864,7 +877,7 @@ const isOutOfBounds = (row, col) => {
 //await fetch('https://www.nytimes.com/games/pips/easy');
 
 const date = new Date('2026-08-17T00:00:00Z'); // leave the part after T to ensure that this is in UTC. That way when converting the date to string, it doesn't change based on your timezone.
-const difficulty = MEDIUM;
+const difficulty = HARD;
 const allData = await fetch(`https://www.nytimes.com/svc/pips/v1/${date.toISOString().split('T')[0]}.json`, {
     headers: {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/[IP_ADDRESS] Safari/537.36'
