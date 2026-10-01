@@ -9,6 +9,14 @@
 </head>
 
 <body>
+    <input type="date" id="puzzle-date"></input>
+    <select id="puzzle-difficulty">
+        <option value="easy">Easy</option>
+        <option value="medium">Medium</option>
+        <option value="hard">Hard</option>
+    </select>
+    <button>Get puzzle</button>
+
     <div id="reasoning-text"></div>
     <div id="sub-reasoning-text"></div>
     <div id="board"></div>
@@ -17,8 +25,8 @@
         <button id="next">Next</button>
         <button style="display: none;" id="next-for-wrong-path">Next for wrong path</button>
     </div>
-    <div id="part-counts">
-    </div>
+    <div id="part-counts"> </div>
+    <div id="sums"></div>
     <script type='module' src="script.js"></script>
 </body>
 
