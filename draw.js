@@ -28,12 +28,12 @@ export const draw = () => {
     const dominoesElement = document.querySelector('#dominoes');
     dominoesElement.replaceChildren();
 
-
     const partCountsElement = document.querySelector('#part-counts');
     partCountsElement.replaceChildren();
 
     const sumsElements = document.querySelector('#sums')
     sumsElements.replaceChildren();
+
 
     const setPartCounts = () => {
         Object.entries(initialDominoPartCounts).forEach(([index, count]) => {
@@ -444,24 +444,22 @@ export const draw = () => {
             doneText.textContent = 'Solved!';
             controls.appendChild(doneText);
         }
-        const nextForWrongPath = document.querySelector('#next-for-wrong-path');
         highlightCell(dominoEntry.cell);
-        if (invalidRoots[JSON.stringify(dominoEntry.cell)].length > 0) {
-            nextForWrongPath.style.display = 'block';
+        if (invalidRoots[JSON.stringify(dominoEntry.cell)] && invalidRoots[JSON.stringify(dominoEntry.cell)].length > 0) {
+            skipButton.style.display = 'block';
 
             const dfs = async (root) => {
                 if (root.children.length === 0) {
-                    await waitForNextClick(nextForWrongPath, nextButton);
                     return;
                 }
 
 
                 for (const child of root.children) {
-                    await waitForNextClick(nextForWrongPath, nextButton);
+                    await waitForNextClick(skipButton, nextButton);
                     const definitePlacements = [];
                     const [cell1DominoHalf, cell2DominoHalf] = putDominoOnBoard(child.value, INCORRECT);
                     for (const placement of child.definitePlacements) {
-                        await waitForNextClick(nextForWrongPath, nextButton);
+                        await waitForNextClick(skipButton, nextButton);
                         let dominoElement = dominoMap.get(JSON.stringify(placement.domino));
                         dominoElement.style.background = 'grey';
                         dominoElement.style.border = 'none';
@@ -487,7 +485,7 @@ export const draw = () => {
                 }
             }
             for (const root of invalidRoots[JSON.stringify(dominoEntry.cell)]) {
-                await waitForNextClick(nextForWrongPath, nextButton);
+                await waitForNextClick(skipButton, nextButton);
                 if (shouldExit) {
                     return;
                 }
@@ -499,7 +497,7 @@ export const draw = () => {
                     dominoElement.style.background = 'grey';
                     dominoElement.style.border = 'none';
                     definitePlacements.push([...putDominoOnBoard(placement, FOLLOWINGPLACEMENT), placement.domino]);
-                    await waitForNextClick(nextForWrongPath, nextButton);
+                    await waitForNextClick(skipButton, nextButton);
                 }
 
                 if (root?.reason) {
@@ -518,12 +516,11 @@ export const draw = () => {
                     removeDomino(placement[0], placement[1], placement[2]);
                 }
             }
-            nextForWrongPath.style.display = 'none';
+            skipButton.style.display = 'none';
         }
         else {
-            nextForWrongPath.style.display = 'none';
+            skipButton.style.display = 'none';
         }
-        putDominoOnBoard(dominoEntry);
     }
     nextButton.addEventListener('click', clickNext);
 
