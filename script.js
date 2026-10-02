@@ -8,15 +8,39 @@ import { initialDominoPartCounts } from "./explainer.js";
 import { pipCountToHtml } from "./pip-html.js";
 import { getBoardSumRange, getUnknownsExpression } from "./sum.js";
 
-const draw = () => {
+export const draw = () => {
+    const nextButton = document.createElement('button');
+    nextButton.id = "next-button";
+    nextButton.textContent = "Next";
+
+    const skipButton = document.createElement('button');
+    skipButton.id = "next-button-for-wrong-path";
+    skipButton.textContent = "Next (wrong path)";
+
+    const controls = document.querySelector("#controls");
+    controls.replaceChildren();
+
+    controls.appendChild(nextButton);
+    controls.appendChild(skipButton);
+
+    const boardElement = document.querySelector('#board');
+    boardElement.replaceChildren();
+    const dominoesElement = document.querySelector('#dominoes');
+    dominoesElement.replaceChildren();
+
+
+    const partCountsElement = document.querySelector('#part-counts');
+    partCountsElement.replaceChildren();
+
+    const sumsElements = document.querySelector('#sums')
+    sumsElements.replaceChildren();
+
     const setPartCounts = () => {
-        const partCountsElement = document.querySelector('#part-counts');
         Object.entries(initialDominoPartCounts).forEach(([index, count]) => {
             const partCountElement = document.createElement('div');
             partCountElement.textContent = `${index}: ${count}`;
             partCountsElement.appendChild(partCountElement);
         })
-        const sumsElements = document.querySelector('#sums')
         const dominoSumsElement = document.createElement('div');
 
         const pipsSum = Object.entries(initialDominoPartCounts).reduce((acc, curr) => acc + curr[0] * curr[1], 0);
@@ -326,7 +350,7 @@ const draw = () => {
     //     });
     // });
 
-    const nextButton = document.querySelector('#next');
+    //const nextButton = document.querySelector('#next');
     let shouldExit = false;
 
     const waitForNextClick = (button, skipButton) => {

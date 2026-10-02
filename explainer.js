@@ -6,6 +6,11 @@ export let initialDominoPartCounts = null;
 export let dominoes;
 export let board;
 
+const DOWN = 'down'
+const UP = 'up'
+const LEFT = 'left'
+const RIGHT = 'right'
+
 export const getOtherIndex = ([i, j], direction) => {
     switch (direction) {
         case DOWN:
@@ -19,7 +24,7 @@ export const getOtherIndex = ([i, j], direction) => {
     }
 }
 
-const solve = async () => {
+export const solve = async () => {
     let indicesToRegion = {};
     let validIndices = new Set();
 
@@ -113,17 +118,13 @@ const solve = async () => {
     }
 
 
-    const DOWN = 'down'
-    const UP = 'up'
-    const LEFT = 'left'
-    const RIGHT = 'right'
 
     const OUT_OF_BOUNDS = 'Out of bounds'
     const INVALID_ARRANGEMENT = 'Invalid arrangement'
 
-    const EASY = 'Easy';
-    const MEDIUM = 'Medium';
-    const HARD = 'Hard';
+    const EASY = 'easy';
+    const MEDIUM = 'medium';
+    const HARD = 'hard';
 
     const CONNECTED = 'connected';
 
@@ -823,11 +824,11 @@ const solve = async () => {
 
     //await fetch('https://www.nytimes.com/games/pips/easy');
 
-    // const date = new Date(document.querySelector('#puzzle-date').value);
-    // const difficulty = document.querySelector('#difficulty').value;
+    const date = new Date(document.querySelector('#puzzle-date').value);
+    const difficulty = document.querySelector('#puzzle-difficulty').value.toLowerCase();
 
-    const date = new Date('2026-09-23T00:00:00Z'); // leave the part after T to ensure that this is in UTC. That way when converting the date to string, it doesn't change based on your timezone.
-    const difficulty = HARD;
+    // const date = new Date('2026-09-23T00:00:00Z'); // leave the part after T to ensure that this is in UTC. That way when converting the date to string, it doesn't change based on your timezone.
+    // const difficulty = HARD;
     const allData = await fetch(`https://www.nytimes.com/svc/pips/v1/${date.toISOString().split('T')[0]}.json`, {
         headers: {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/[IP_ADDRESS] Safari/537.36'
@@ -839,7 +840,7 @@ const solve = async () => {
     if (difficulty !== EASY && difficulty !== MEDIUM && difficulty !== HARD)
         throw new Error(`difficulty ${difficulty} is not valid`);
 
-    const data = json[difficulty];
+    const data = json[difficulty.toLowerCase()];
 
 
     dominoes = data.dominoes;
