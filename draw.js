@@ -1,4 +1,3 @@
-
 import { board } from "./explainer.js"
 import { dominoes } from "./explainer.js"
 import { finalSolution } from "./explainer.js"
@@ -6,22 +5,37 @@ import { getOtherIndex } from "./explainer.js";
 import { invalidRoots } from "./explainer.js";
 import { initialDominoPartCounts } from "./explainer.js";
 import { pipCountToHtml } from "./pip-html.js";
+import { pipCountToHtmlFlipped } from "./pip-html.js";
 import { getBoardSumRange, getUnknownsExpression } from "./sum.js";
+import { allSinglePlacementCells } from "./drawStructure.js";
+
+
+import { UP, DOWN, LEFT, RIGHT } from './explainer.js';
+
+import { drawStructure } from './drawStructure.js';
+
+const NORMAL = 'normal';
+const INCORRECT = 'incorrect';
+export const PLACEHOLDER = 'placeholder';
+const FOLLOWINGPLACEMENT = 'following placement';
+
+export let putDominoOnBoard;
 
 export const draw = () => {
     const nextButton = document.createElement('button');
     nextButton.id = "next-button";
     nextButton.textContent = "Next";
 
-    const skipButton = document.createElement('button');
-    skipButton.id = "next-button-for-wrong-path";
-    skipButton.textContent = "Next (wrong path)";
+    const nextForWrongPath = document.createElement('button');
+    nextForWrongPath.id = "next-button-for-wrong-path";
+    nextForWrongPath.textContent = "Next (wrong path)";
+    nextForWrongPath.style.display = 'none';
 
     const controls = document.querySelector("#controls");
     controls.replaceChildren();
 
     controls.appendChild(nextButton);
-    controls.appendChild(skipButton);
+    controls.appendChild(nextForWrongPath);
 
     const boardElement = document.querySelector('#board');
     boardElement.replaceChildren();
@@ -34,6 +48,11 @@ export const draw = () => {
     const sumsElements = document.querySelector('#sums')
     sumsElements.replaceChildren();
 
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowRight') {
+            nextButton.click();
+        }
+    })
 
     const setPartCounts = () => {
         Object.entries(initialDominoPartCounts).forEach(([index, count]) => {
@@ -353,7 +372,7 @@ export const draw = () => {
     //const nextButton = document.querySelector('#next');
     let shouldExit = false;
 
-    const waitForNextClick = (button, skipButton) => {
+    const waitForNextClick = (button, nextForWrongPathButton = null) => {
         return new Promise(resolve => {
             button.addEventListener('click',
                 () => {
@@ -361,35 +380,102 @@ export const draw = () => {
                     resolve();
                 }
                 , { once: true });
-            skipButton.addEventListener('click',
-                () => {
-                    shouldExit = true;
-                    unhighlightCell(CURRENT_CELL);
-                    unhighlightCell(WRONG_CELL);
-                    resolve();
-                }
-                , { once: true });
+            if (nextForWrongPathButton) {
+                nextForWrongPathButton.addEventListener('click',
+                    () => {
+                        shouldExit = true;
+                        //unhighlightCell(CURRENT_CELL);
+                        unhighlightCell(WRONG_CELL);
+                        resolve();
+                    }
+                    , { once: true });
+            }
         });
     };
 
 
-    let currentHighlightedCell = null;
-    let currentHighlightedWrongCell = null;
+    let lastHighlightedCell = null;
+    let lastHighlightedWrongCell = null;
 
-    const highlightCell = (cell) => {
-        const lastBorder = indicesToCellMap.get(`${cell[0]},${cell[1]}`).style.border;
-        indicesToCellMap.get(`${cell[0]},${cell[1]}`).style.border = '3px solid green';
-        if (currentHighlightedCell)
-            indicesToCellMap.get(`${currentHighlightedCell.cell[0]},${currentHighlightedCell.cell[1]}`).style.border = currentHighlightedCell.lastBorder
-        currentHighlightedCell = { cell, lastBorder };
+    const CURRENT_CELL = 'current_cell';
+    const WRONG_CELL = 'wrong_cell';
+
+    const highlightCell = (cell, direction = null) => {
+        const cellElement = indicesToCellMap.get(`${cell[0]},${cell[1]}`);
+        const lastBorder = cellElement.style.border;
+        cellElement.style.border = '3px solid green';
+        let otherCellElement = null
+        let lastOtherCellBorder = null
+        if (direction) {
+            const otherCell = getOtherIndex(cell, direction);
+            otherCellElement = indicesToCellMap.get(`${otherCell[0]},${otherCell[1]}`);
+            lastOtherCellBorder = otherCellElement.style.border;
+            otherCellElement.style.border = '3px solid green';
+            switch (direction) {
+                case DOWN:
+                    cellElement.style.borderBottom = 'transparent';
+                    otherCellElement.style.borderTop = 'transparent';
+                    break;
+                case UP:
+                    cellElement.style.borderTop = 'transparent';
+                    otherCellElement.style.borderBottom = 'transparent';
+                    break;
+                case RIGHT:
+                    cellElement.style.borderRight = 'transparent';
+                    otherCellElement.style.borderLeft = 'transparent';
+                    break;
+                case LEFT:
+                    cellElement.style.borderLeft = 'transparent';
+                    otherCellElement.style.borderRight = 'transparent';
+                    break;
+            }
+        }
+        if (lastHighlightedCell)
+            lastHighlightedCell.forEach(cell => cell.cellElement.style.border = cell.lastBorder);
+
+        lastHighlightedCell = [{ cellElement, lastBorder }];
+        if (otherCellElement) {
+            lastHighlightedCell.push({ cellElement: otherCellElement, lastBorder: lastOtherCellBorder });
+        }
     }
 
-    const highlightWrongCell = (cell) => {
-        const lastBorder = indicesToCellMap.get(`${cell[0]},${cell[1]}`).style.border;
-        indicesToCellMap.get(`${cell[0]},${cell[1]}`).style.border = '3px solid red';
-        if (currentHighlightedWrongCell)
-            indicesToCellMap.get(`${currentHighlightedWrongCell.cell[0]},${currentHighlightedWrongCell.cell[1]}`).style.border = currentHighlightedWrongCell.lastBorder
-        currentHighlightedWrongCell = { cell, lastBorder };
+    const highlightWrongCell = (cell, direction = null) => {
+        const cellElement = indicesToCellMap.get(`${cell[0]},${cell[1]}`);
+        const lastBorder = cellElement.style.border;
+        cellElement.style.border = '3px solid red';
+        let otherCellElement = null
+        let lastOtherCellBorder = null
+        if (direction) {
+            const otherCell = getOtherIndex(cell, direction);
+            otherCellElement = indicesToCellMap.get(`${otherCell[0]},${otherCell[1]}`);
+            lastOtherCellBorder = otherCellElement.style.border;
+            otherCellElement.style.border = '3px solid red';
+            switch (direction) {
+                case DOWN:
+                    cellElement.style.borderBottom = 'transparent';
+                    otherCellElement.style.borderTop = 'transparent';
+                    break;
+                case UP:
+                    cellElement.style.borderTop = 'transparent';
+                    otherCellElement.style.borderBottom = 'transparent';
+                    break;
+                case RIGHT:
+                    cellElement.style.borderRight = 'transparent';
+                    otherCellElement.style.borderLeft = 'transparent';
+                    break;
+                case LEFT:
+                    cellElement.style.borderLeft = 'transparent';
+                    otherCellElement.style.borderRight = 'transparent';
+                    break;
+            }
+        }
+        if (lastHighlightedWrongCell)
+            lastHighlightedWrongCell.forEach(cell => cell.cellElement.style.border = cell.lastBorder);
+
+        lastHighlightedWrongCell = [{ cellElement, lastBorder }];
+        if (otherCellElement) {
+            lastHighlightedWrongCell.push({ cellElement: otherCellElement, lastBorder: lastOtherCellBorder });
+        }
     }
 
     // const highlightWrongCell = (cell) => {
@@ -408,20 +494,18 @@ export const draw = () => {
     //     currentHighlightedWrongCell = { cell, lastBackgroundImage };
     // }
 
-    const CURRENT_CELL = 'current_cell';
-    const WRONG_CELL = 'wrong_cell';
 
     const unhighlightCell = (cellType = CURRENT_CELL) => {
         if (cellType === CURRENT_CELL) {
-            if (currentHighlightedCell) {
-                indicesToCellMap.get(`${currentHighlightedCell.cell[0]},${currentHighlightedCell.cell[1]}`).style.border = currentHighlightedCell.lastBorder
-                currentHighlightedCell = null;
+            if (lastHighlightedCell) {
+                lastHighlightedCell.forEach(cell => cell.cellElement.style.border = cell.lastBorder);
+                lastHighlightedCell = null;
             }
         }
         else if (cellType === WRONG_CELL) {
-            if (currentHighlightedWrongCell) {
-                indicesToCellMap.get(`${currentHighlightedWrongCell.cell[0]},${currentHighlightedWrongCell.cell[1]}`).style.border = currentHighlightedWrongCell.lastBorder
-                currentHighlightedWrongCell = null;
+            if (lastHighlightedWrongCell) {
+                lastHighlightedWrongCell.forEach(cell => cell.cellElement.style.border = cell.lastBorder);
+                lastHighlightedWrongCell = null;
             }
         }
         else {
@@ -431,6 +515,8 @@ export const draw = () => {
 
 
     const clickNext = async () => {
+        drawStructure();
+        await waitForNextClick(nextButton);
         const { dominoEntry, reasoning } = finalSolution[0];
         finalSolution.shift();
         const [originalcell1DominoHalf, originalcell2DominoHalf] = putDominoOnBoard(dominoEntry);
@@ -438,33 +524,36 @@ export const draw = () => {
         const subReasoningText = document.querySelector('#sub-reasoning-text');
         subReasoningText.replaceChildren();
         reasoningText.textContent = reasoning;
+
         if (finalSolution.length === 0) {
             controls.replaceChildren();
             const doneText = document.createElement('span');
             doneText.textContent = 'Solved!';
             controls.appendChild(doneText);
         }
-        highlightCell(dominoEntry.cell);
+
+        highlightCell(dominoEntry.cell, allSinglePlacementCells.has(`${dominoEntry.cell[0]},${dominoEntry.cell[1]}`) ? dominoEntry.direction : null);
         if (invalidRoots[JSON.stringify(dominoEntry.cell)] && invalidRoots[JSON.stringify(dominoEntry.cell)].length > 0) {
-            skipButton.style.display = 'block';
+            nextForWrongPath.style.display = 'block';
 
             const dfs = async (root) => {
                 if (root.children.length === 0) {
                     return;
                 }
-
-
-                for (const child of root.children) {
-                    await waitForNextClick(skipButton, nextButton);
+                for (const [index, child] of root.children.entries()) {
+                    if (index === 0) {
+                        await waitForNextClick(nextForWrongPath, nextButton);
+                    }
                     const definitePlacements = [];
                     const [cell1DominoHalf, cell2DominoHalf] = putDominoOnBoard(child.value, INCORRECT);
                     for (const placement of child.definitePlacements) {
-                        await waitForNextClick(skipButton, nextButton);
+                        await waitForNextClick(nextForWrongPath, nextButton);
                         let dominoElement = dominoMap.get(JSON.stringify(placement.domino));
                         dominoElement.style.background = 'grey';
                         dominoElement.style.border = 'none';
                         definitePlacements.push([...putDominoOnBoard(placement, FOLLOWINGPLACEMENT), placement.domino]);
                     }
+                    // is it possible to have a reason but no cells to highlight?
                     if (child?.reason) {
                         subReasoningText.textContent = child.reason;
                     }
@@ -472,11 +561,14 @@ export const draw = () => {
                         for (const cell of child.cells) {
                             highlightWrongCell(cell);
                         }
+                        await waitForNextClick(nextForWrongPath, nextButton);
+                        unhighlightCell(WRONG_CELL);
+                        subReasoningText.textContent = '';
                     }
                     if (shouldExit) {
                         return;
                     }
-                    highlightCell(child.value.cell);
+                    //highlightCell(child.value.cell);
                     await dfs(child);
                     removeDomino(cell1DominoHalf, cell2DominoHalf, child.value.domino);
                     for (const placement of definitePlacements) {
@@ -485,7 +577,7 @@ export const draw = () => {
                 }
             }
             for (const root of invalidRoots[JSON.stringify(dominoEntry.cell)]) {
-                await waitForNextClick(skipButton, nextButton);
+                await waitForNextClick(nextForWrongPath, nextButton);
                 if (shouldExit) {
                     return;
                 }
@@ -493,11 +585,11 @@ export const draw = () => {
                 removeDomino(originalcell1DominoHalf, originalcell2DominoHalf, dominoEntry.domino);
                 const definitePlacements = [];
                 for (const placement of root.definitePlacements) {
+                    await waitForNextClick(nextForWrongPath, nextButton);
                     let dominoElement = dominoMap.get(JSON.stringify(placement.domino));
                     dominoElement.style.background = 'grey';
                     dominoElement.style.border = 'none';
                     definitePlacements.push([...putDominoOnBoard(placement, FOLLOWINGPLACEMENT), placement.domino]);
-                    await waitForNextClick(skipButton, nextButton);
                 }
 
                 if (root?.reason) {
@@ -506,8 +598,11 @@ export const draw = () => {
                 }
                 if (root?.cells) {
                     for (const cell of root.cells) {
-                        highlightCell(cell);
+                        highlightWrongCell(cell);
                     }
+                    await waitForNextClick(nextForWrongPath, nextButton);
+                    unhighlightCell(WRONG_CELL);
+                    subReasoningText.textContent = '';
                 }
 
                 await dfs(root);
@@ -516,10 +611,11 @@ export const draw = () => {
                     removeDomino(placement[0], placement[1], placement[2]);
                 }
             }
-            skipButton.style.display = 'none';
+            nextForWrongPath.style.display = 'none';
+            putDominoOnBoard(dominoEntry);
         }
         else {
-            skipButton.style.display = 'none';
+            nextForWrongPath.style.display = 'none';
         }
     }
     nextButton.addEventListener('click', clickNext);
@@ -534,36 +630,16 @@ export const draw = () => {
     }
 
 
-    const NORMAL = 'normal';
-    const INCORRECT = 'incorrect';
-    const FOLLOWINGPLACEMENT = 'following placement';
 
-    const putDominoOnBoard = (dominoEntry, placementType = NORMAL) => {
-        const dominoElement = dominoMap.get(JSON.stringify(dominoEntry.domino));
+    putDominoOnBoard = (dominoEntry, placementType = NORMAL) => {
 
-        /*
-        const copy = dominoElement.cloneNode(true)
-        let rotation = 0;
-        // rotations are clockwise
-        switch (dominoEntry.direction) {
-            case 'left':
-                rotation = 180;
-                break;
-            case 'right':
-                rotation = 0;
-                break;
-            case 'up':
-                rotation = 270;
-                break;
-            case 'down':
-                rotation = 90;
-                break;
+        if (placementType !== PLACEHOLDER) {
+            const dominoElement = dominoMap.get(JSON.stringify(dominoEntry.domino));
+            dominoElement.style.backgroundColor = 'grey';
+            dominoElement.style.border = 'none';
+            dominoElement.replaceChildren();
         }
-        */
 
-        dominoElement.style.backgroundColor = 'grey';
-        dominoElement.style.border = 'none';
-        dominoElement.replaceChildren();
 
         const cell1 = indicesToCellMap.get(`${dominoEntry.cell[0]},${dominoEntry.cell[1]}`)
         const cell1DominoHalf = document.createElement('div');
@@ -581,11 +657,32 @@ export const draw = () => {
         const cell2DominoHalf = document.createElement('div');
         cell2DominoHalf.classList.add('domino-half');
 
-        const backgroudColor = placementType === INCORRECT ? 'black' : placementType === NORMAL ? 'white' : 'red';
-        const pipsColor = placementType === INCORRECT ? 'white' : placementType === NORMAL ? 'black' : 'black';
+        // const backgroudColor = placementType === INCORRECT ? 'black' : placementType === NORMAL ? 'white' : 'red';
+        // const pipsColor = placementType === INCORRECT ? 'white' : placementType === NORMAL ? 'black' : 'black';
+        let backgroundColor;
+        let pipsColor;
+        switch (placementType) {
+            case INCORRECT:
+                backgroundColor = 'black';
+                pipsColor = 'white';
+                break;
+            case NORMAL:
+                backgroundColor = 'white';
+                pipsColor = 'black';
+                break;
+            case PLACEHOLDER:
+                backgroundColor = 'rgba(255, 255, 255, 0.25)'; // white at 25% transparency.
+                pipsColor = 'rgba(0, 0, 0, 0.25)';
+                break;
+            case FOLLOWINGPLACEMENT:
+                backgroundColor = 'red';
+                pipsColor = 'black';
+                break;
+        }
+
         // Set up both cells
         for (const cell of [cell1DominoHalf, cell2DominoHalf]) {
-            cell.style.backgroundColor = backgroudColor;
+            cell.style.backgroundColor = backgroundColor;
             cell.style.color = pipsColor; // don't think this will do anything
             cell.style.borderTop = `2px solid ${pipsColor}`;
             cell.style.borderBottom = `2px solid ${pipsColor}`;
@@ -598,25 +695,30 @@ export const draw = () => {
         }
 
         // Add the domino values
-        // cell1DominoHalf.append(
-        //     dominoEntry.domino[dominoEntry.flipped ? 1 : 0]
-        // );
-        // cell2DominoHalf.append(
-        //     dominoEntry.domino[dominoEntry.flipped ? 0 : 1]
-        // );
-
-        cell1DominoHalf.style.setProperty('--pip-color', pipsColor);
-        cell2DominoHalf.style.setProperty('--pip-color', pipsColor);
-        if (dominoEntry.domino[dominoEntry.flipped ? 1 : 0] !== 0)
-            cell1DominoHalf.innerHTML = pipCountToHtml[dominoEntry.domino[dominoEntry.flipped ? 1 : 0]]
-        if (dominoEntry.domino[dominoEntry.flipped ? 0 : 1] !== 0)
-            cell2DominoHalf.innerHTML = pipCountToHtml[dominoEntry.domino[dominoEntry.flipped ? 0 : 1]]
-
+        if (placementType === PLACEHOLDER) {
+            cell1DominoHalf.append(
+                '?'
+            );
+            cell2DominoHalf.append(
+                '?'
+            );
+        }
+        else {
+            let pipHtml = pipCountToHtml;
+            if (dominoEntry.direction === UP || dominoEntry.direction === DOWN)
+                pipHtml = pipCountToHtmlFlipped;
+            cell1DominoHalf.style.setProperty('--pip-color', pipsColor);
+            cell2DominoHalf.style.setProperty('--pip-color', pipsColor);
+            if (dominoEntry.domino[dominoEntry.flipped ? 1 : 0] !== 0)
+                cell1DominoHalf.innerHTML = pipHtml[dominoEntry.domino[dominoEntry.flipped ? 1 : 0]]
+            if (dominoEntry.domino[dominoEntry.flipped ? 0 : 1] !== 0)
+                cell2DominoHalf.innerHTML = pipHtml[dominoEntry.domino[dominoEntry.flipped ? 0 : 1]]
+        }
 
 
         // Remove the border between the two cells
         switch (dominoEntry.direction) {
-            case 'up':
+            case UP:
                 cell1DominoHalf.style.borderTop = '2px solid transparent';
                 cell2DominoHalf.style.borderBottom = '2px solid transparent';
                 cell1DominoHalf.style.borderTopLeftRadius = '0';
@@ -625,7 +727,7 @@ export const draw = () => {
                 cell2DominoHalf.style.borderBottomRightRadius = '0';
                 break;
 
-            case 'down':
+            case DOWN:
                 cell1DominoHalf.style.borderBottom = '2px solid transparent';
                 cell2DominoHalf.style.borderTop = '2px solid transparent';
                 cell1DominoHalf.style.borderBottomLeftRadius = '0';
@@ -634,7 +736,7 @@ export const draw = () => {
                 cell2DominoHalf.style.borderTopRightRadius = '0';
                 break;
 
-            case 'right':
+            case RIGHT:
                 cell1DominoHalf.style.borderRight = '2px solid transparent';
                 cell2DominoHalf.style.borderLeft = '2px solid transparent';
                 cell1DominoHalf.style.borderTopRightRadius = '0';
@@ -643,7 +745,7 @@ export const draw = () => {
                 cell2DominoHalf.style.borderBottomLeftRadius = '0';
                 break;
 
-            case 'left':
+            case LEFT:
                 cell1DominoHalf.style.borderLeft = '2px solid transparent';
                 cell2DominoHalf.style.borderRight = '2px solid transparent';
                 cell1DominoHalf.style.borderTopLeftRadius = '0';
@@ -653,28 +755,10 @@ export const draw = () => {
                 break;
         }
 
-        // the next two methods work by copying the exisitng element and appending it.
-        // to append to the inner cell: 
-        // copy.style.left = 0 + 'px';
-        // copy.style.top = 0 + 'px';
-        // copy.style.margin = 0 + 'px';
-        // copy.style.position = 'absolute';
-        // copy.style.transformOrigin = `${cellSize / 2}px ${cellSize / 2}px`;
-        // copy.style.transform = 'rotate(' + rotation + 'deg)';
-        // copy.style.zIndex = -1;
-        // cell1.appendChild(copy);
-
-        //to append to the board: 
-        // const boardElement = document.querySelector('#board');
-        // const cell1Coords = cell1.getBoundingClientRect();
-        // const boardCoords = boardElement.getBoundingClientRect();
-        // copy.style.position = 'absolute';
-        // copy.style.margin = 0 + 'px';
-        // copy.style.left = cell1Coords.left - boardCoords.left + 'px';
-        // copy.style.top = cell1Coords.top - boardCoords.top + 'px';
-        // copy.style.zIndex = 5;
-        // copy.style.transformOrigin = `${cellSize / 2}px ${cellSize / 2}px`;
-        // copy.style.transform = 'rotate(' + rotation + 'deg)';
+        for (const child of [...cell1.children, ...cell2.children]) {
+            if (!child.classList.contains('tint'))
+                child.remove();
+        }
 
         cell1.append(cell1DominoHalf);
         cell2.append(cell2DominoHalf);

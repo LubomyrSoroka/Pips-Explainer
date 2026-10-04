@@ -1,15 +1,16 @@
 
-export const finalSolution = [];
-export const invalidRoots = new Map();
-export let done = false;
-export let initialDominoPartCounts = null;
+export let finalSolution;
+export let invalidRoots;
+export let done;
+export let initialDominoPartCounts;
 export let dominoes;
 export let board;
+export let cellsToDirections;
 
-const DOWN = 'down'
-const UP = 'up'
-const LEFT = 'left'
-const RIGHT = 'right'
+export const DOWN = 'down'
+export const UP = 'up'
+export const LEFT = 'left'
+export const RIGHT = 'right'
 
 export const getOtherIndex = ([i, j], direction) => {
     switch (direction) {
@@ -24,7 +25,15 @@ export const getOtherIndex = ([i, j], direction) => {
     }
 }
 
+
+
 export const solve = async () => {
+    cellsToDirections = [];
+    finalSolution = [];
+    invalidRoots = new Map();
+    done = false;
+    initialDominoPartCounts = null;
+
     let indicesToRegion = {};
     let validIndices = new Set();
 
@@ -347,6 +356,9 @@ export const solve = async () => {
                 if (!silenced) {
                     // console.log("added domino", dominoEntry)
                     finalSolution.push({ dominoEntry, reasoning: reasoningOnlyOneDomino });
+
+                    // this returns the map with all directions after inserting each cell.
+                    cellsToDirections.push(structuredClone(validCellsToDirections));
                 }
 
                 foundAreasAndDominoes.push(dominoEntry);
@@ -426,6 +438,15 @@ export const solve = async () => {
                 validIndices.delete(`${optionToModify.cell[0]},${optionToModify.cell[1]}`);
                 validIndices.delete(`${otherIndices[0]},${otherIndices[1]}`);
                 foundDominoes.push(optionToModify.domino);
+
+                // add the definite placements to the final solution
+                for (const definitePlacement of currentNode.definitePlacements) {
+                    const otherIndices = getOtherIndex(definitePlacement.cell, definitePlacement.direction);
+                    adjustConditions([{ cell: definitePlacement.cell, value: definitePlacement.domino[definitePlacement.flipped ? 1 : 0] }, { cell: otherIndices, value: definitePlacement.domino[definitePlacement.flipped ? 0 : 1] }]);
+                    validIndices.delete(`${definitePlacement.cell[0]},${definitePlacement.cell[1]}`);
+                    validIndices.delete(`${otherIndices[0]},${otherIndices[1]}`);
+                    foundDominoes.push(definitePlacement.domino);
+                }
                 currentNode = currentNode.parent;
                 ++depth;
             } while (currentNode);
@@ -507,8 +528,7 @@ export const solve = async () => {
                 continue;
             }
 
-            else if (result?.foundPlacements) {
-                // if this happens, then you've found one of the possible solutions
+            else {
                 if (!canPlaceDomino()) {
                     let currentNode = roots[i];
                     const previousPlacements = [];
@@ -547,11 +567,8 @@ export const solve = async () => {
             roots.push(...roots[i].children);
         }
 
-        if (canPlaceDomino()) {
-            finalSolution.push(...lastAddedToFinalSolution);
-        }
+        finalSolution.push(...lastAddedToFinalSolution);
 
-        console.log(`${solutionCount} solutions found.`);
     }
 
 
