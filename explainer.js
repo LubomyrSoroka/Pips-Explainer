@@ -7,6 +7,7 @@ export let dominoes;
 export let board;
 export let cellsToDirections;
 export let dominoPartCounts;
+export let dominoPartCountHistory;
 
 export const DOWN = 'down'
 export const UP = 'up'
@@ -29,6 +30,7 @@ export const getOtherIndex = ([i, j], direction) => {
 import { getCombinations } from "./GetCombinations.js";
 
 export const solve = async () => {
+    dominoPartCountsHistory = [];
     cellsToDirections = [];
     finalSolution = [];
     invalidRoots = new Map();
@@ -357,6 +359,7 @@ export const solve = async () => {
                 if (!silenced) {
                     // console.log("added domino", dominoEntry)
                     finalSolution.push({ dominoEntry, reasoning: reasoningOnlyOneDomino });
+                    dominoPartCountHistory.push(...dominoPartCounts);
 
                     // this returns the map with all directions after inserting each cell.
                     cellsToDirections.push(structuredClone(validCellsToDirections));
@@ -511,6 +514,7 @@ export const solve = async () => {
 
 
                     finalSolution.push({ dominoEntry, reasoning });
+                    dominoPartCountHistory.push(...dominoPartCounts);
 
                     foundDominoes.push(validOption.domino);
                     const otherIndices = getOtherIndex(validOption.cell, validOption.direction);
@@ -745,7 +749,7 @@ export const solve = async () => {
         for (const [index, entry] of regions.entries()) {
             if (entry.type === 'sum' || entry.type === 'greater' || entry.type === 'less') {
                 if (entry.indices.length > 1) {
-                    const { combinations, minNumberOfPipsUsed, unusedPipsValues } = getCombinations(entry.target, entry.indices.length, entry.type);
+                    const {  totalCombinations: combinations, minNumberOfPipsUsed, unusedPipsValues } = getCombinations(entry.target, entry.indices.length, entry.type);
                     entry.unusedPipsValues = unusedPipsValues;
                     if (combinations.size === 0) {
                         return { type: INVALID_ARRANGEMENT, reason: `For the ${JSON.stringify(entry.indices)} region, there is no combinations of pips values that sum to ${entry.target}.` }
@@ -785,6 +789,9 @@ export const solve = async () => {
                         dominoPartCounts[pipsValue] -= minNumberOfPipsUsed[pipsValue];
                     }
                 }
+                else if (entry.indices.length === 1 && entry.type === 'sum' && validIndices.has(entry.indices[0].join(','))) {
+                    --dominoPartCounts[entry.target];
+                }
                 else if (entry.indices.length === 1 && entry.type === 'greater') {
                     if (entry.target === '5' && validIndices.has(entry.indices[0].join(','))) {
                         indicesToRegion[indexKey] = { type: 'sum', target: 6, numberOfCells: 1, indices: [index] }
@@ -796,9 +803,6 @@ export const solve = async () => {
                         indicesToRegion[indexKey] = { type: 'sum', target: 0, numberOfCells: 1, indices: [index] }
                         --dominoPartCounts[0];
                     }
-                }
-                else if (entry.indices.length === 1 && entry.type === 'sum' && validIndices.has(entry.indices[0].join(','))) {
-                    --dominoPartCounts[entry.target];
                 }
             }
             if (Object.values(dominoPartCounts).some(val => val < 0))
@@ -985,6 +989,7 @@ export const solve = async () => {
     }
 
     getBoardCoords(board);
+    updateRegionsAndDominoPartCounts();
     updateStructure();
     checkRequiresDouble();
 

@@ -54,7 +54,7 @@ const LESS = 'less';
 
 export const getCombinations = (target, numberOfCells, type = SUM) => {
     const minNumberOfPipsUsed = {};
-    const unusedPipsValues = new Set([0, 1, 2, 3, 4, 5, 6]);
+    let unusedPipsValues = new Set([0, 1, 2, 3, 4, 5, 6]);
     for (let i = 0; i <= 6; ++i) {
         minNumberOfPipsUsed[i] = Infinity;
     }

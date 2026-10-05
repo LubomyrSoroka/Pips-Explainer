@@ -22,6 +22,7 @@ const FOLLOWINGPLACEMENT = 'following placement';
 export let putDominoOnBoard;
 
 export const draw = () => {
+    let dominoPartCounts = {...initialDominoPartCounts};
     const nextButton = document.createElement('button');
     nextButton.id = "next-button";
     nextButton.textContent = "Next";
@@ -516,6 +517,7 @@ export const draw = () => {
 
     const clickNext = async () => {
         drawStructure();
+
         await waitForNextClick(nextButton);
         const { dominoEntry, reasoning } = finalSolution[0];
         finalSolution.shift();
@@ -632,7 +634,8 @@ export const draw = () => {
 
 
     putDominoOnBoard = (dominoEntry, placementType = NORMAL) => {
-
+        --dominoPartCounts[dominoEntry[0]];
+        --dominoPartCounts[dominoEntry[1]];
         if (placementType !== PLACEHOLDER) {
             const dominoElement = dominoMap.get(JSON.stringify(dominoEntry.domino));
             dominoElement.style.backgroundColor = 'grey';
