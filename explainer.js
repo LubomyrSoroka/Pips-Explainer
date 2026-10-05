@@ -6,6 +6,7 @@ export let initialDominoPartCounts;
 export let dominoes;
 export let board;
 export let cellsToDirections;
+export let dominoPartCounts;
 
 export const DOWN = 'down'
 export const UP = 'up'
@@ -25,7 +26,7 @@ export const getOtherIndex = ([i, j], direction) => {
     }
 }
 
-
+import { getCombinations } from "./GetCombinations.js";
 
 export const solve = async () => {
     cellsToDirections = [];
@@ -48,7 +49,7 @@ export const solve = async () => {
         6: false
     }
 
-    let dominoPartCounts = {
+    dominoPartCounts = {
         0: 0,
         1: 0,
         2: 0,
@@ -666,44 +667,142 @@ export const solve = async () => {
         }
     }
 
-    const updateSumMultipleOfSixAndZeroes = () => {
-        for (const [index, entry] of regions.entries()) {
-            if (entry.type === 'sum') {
-                if (entry.indices.length >= 2 && entry.target > 12 && entry.target % 6 === 0) {
-                    const replaced = false;
-                    for (const index of entry.indices) {
-                        const indexKey = `${index[0]},${index[1]}`;
-                        if (validIndices.has(indexKey)) {
-                            replced = true;
-                            indicesToRegion[indexKey] = { type: 'sum', target: 6, numberOfCells: 1, indices: [index] }
-                            regions.push(indicesToRegion[indexKey]);
-                        }
-                    }
-                    if (replaced) {
-                        regions.splice(index, 1);
-                        console.log(`replacing region ${JSON.stringify(entry.indices)} with 6's`)
-                    }
-                }
-                else if (entry.indices.length >= 2 && entry.target === 0) {
-                    let replaced = false;
-                    for (const index of entry.indices) {
-                        const indexKey = `${index[0]},${index[1]}`;
-                        if (validIndices.has(indexKey)) {
-                            replaced = true;
-                            indicesToRegion[indexKey] = { type: 'sum', target: 0, numberOfCells: 1, indices: [index] }
-                            regions.push(indicesToRegion[indexKey]);
-                        }
-                    }
-                    if (replaced) {
-                        console.log(`replacing region ${JSON.stringify(entry.indices)} with 0's`)
-                        regions.splice(index, 1);
-                    }
-                }
-            }
-            if (entry.type === 'greater') {
-                // convert >5 to 6 if one cell, >11 to 12 (or two 6's if two cells), etc.
+    // const updateSumMultipleOfSixAndZeroes = () => {
+    //     for (const [index, entry] of regions.entries()) {
+    //         if (entry.type === 'sum') {
+    //             if (entry.indices.length >= 2 && entry.target > 12 && entry.target % 6 === 0) {
+    //                 const replaced = false;
+    //                 for (const index of entry.indices) {
+    //                     const indexKey = `${index[0]},${index[1]}`;
+    //                     if (validIndices.has(indexKey)) {
+    //                         replced = true;
+    //                         indicesToRegion[indexKey] = { type: 'sum', target: 6, numberOfCells: 1, indices: [index] }
+    //                         regions.push(indicesToRegion[indexKey]);
+    //                     }
+    //                 }
+    //                 if (replaced) {
+    //                     regions.splice(index, 1);
+    //                     console.log(`replacing region ${JSON.stringify(entry.indices)} with 6's`)
+    //                 }
+    //             }
+    //             else if (entry.indices.length >= 2 && entry.target === 0) {
+    //                 let replaced = false;
+    //                 for (const index of entry.indices) {
+    //                     const indexKey = `${index[0]},${index[1]}`;
+    //                     if (validIndices.has(indexKey)) {
+    //                         replaced = true;
+    //                         indicesToRegion[indexKey] = { type: 'sum', target: 0, numberOfCells: 1, indices: [index] }
+    //                         regions.push(indicesToRegion[indexKey]);
+    //                     }
+    //                 }
+    //                 if (replaced) {
+    //                     console.log(`replacing region ${JSON.stringify(entry.indices)} with 0's`)
+    //                     regions.splice(index, 1);
+    //                 }
+    //             }
+    //         }
+    //         if (entry.type === 'greater') {
+    //             // convert >5 to 6 if one cell, >11 to 12 (or two 6's if two cells), etc.
 
+    //         }
+    //     }
+    // }
+
+    // const updateDominoPartCounts = () => {
+    //     dominoPartCounts = { ...initialDominoPartCounts }
+    //     for (const domino of foundDominoes) {
+    //         dominoPartCounts[domino[0]] -= 1;
+    //         dominoPartCounts[domino[1]] -= 1;
+    //     }
+    //     for (const entry of regions) {
+    //         if (entry.type === 'sum') {
+    //             // the reason for checking if the index is in validIndices (the indices of the cells which haven't been assigned any domnino yet)
+    //             // is because when you add a domino there, the sum will go to 0 and which will subtract from the number of 0's
+    //             // and then you will get an invalid configuration because the number of 0 is below 0 (which isn't really true.)
+    //             if (entry.indices.length === 1 && validIndices.has(entry.indices[0].join(',')))
+    //                 dominoPartCounts[entry.target] -= 1;
+    //             else if (entry.target > 7 && entry.target % 6 === 1) {// e.g. if it is 11, 17 and so on...
+    //                 const sixesToSubtract = Math.trunc(entry.target / 6);
+    //                 dominoPartCounts[6] -= sixesToSubtract;
+    //                 dominoPartCounts[5] -= 1;
+    //             }
+    //             if (Object.values(dominoPartCounts).some(val => val < 0))
+    //                 return { type: INVALID_ARRANGEMENT, reason: `One of the domino part counts is below 0: ${JSON.stringify(dominoPartCounts)}` };
+    //         }
+    //     }
+    //     //console.log(dominoPartCounts);
+    //     return true;
+    // }
+
+    // updates the allowable combinations of each sum area based on the user's avaiable inputs.
+    // e.g, if the user doesn't have a 4 and there are two cells with sum 9, then it must be made with 3 and 6 So update the counts for those halves.
+    const updateRegionsAndDominoPartCounts = () => {
+        dominoPartCounts = { ...initialDominoPartCounts }
+        for (const domino of foundDominoes) {
+            dominoPartCounts[domino[0]] -= 1;
+            dominoPartCounts[domino[1]] -= 1;
+        }
+        for (const [index, entry] of regions.entries()) {
+            if (entry.type === 'sum' || entry.type === 'greater' || entry.type === 'less') {
+                if (entry.indices.length > 1) {
+                    const { combinations, minNumberOfPipsUsed, unusedPipsValues } = getCombinations(entry.target, entry.indices.length, entry.type);
+                    entry.unusedPipsValues = unusedPipsValues;
+                    if (combinations.size === 0) {
+                        return { type: INVALID_ARRANGEMENT, reason: `For the ${JSON.stringify(entry.indices)} region, there is no combinations of pips values that sum to ${entry.target}.` }
+                    }
+                    else if (combinations.size === 1) {
+                        let onlyValue = -1;
+                        const firstCombo = combinations.values().next().value;
+                        let numberOfNonZeroEntries = 0;
+                        for (const key of Object.keys(firstCombo).map(Number)) {
+                            if (firstCombo[key] > 0) {
+                                ++numberOfNonZeroEntries;
+                                onlyValue = key;
+                            }
+                            if (numberOfNonZeroEntries > 1)
+                                break;
+                        }
+                        if (numberOfNonZeroEntries === 1) {
+                            let replaced = false;
+                            for (const index of entry.indices) {
+                                const indexKey = `${index[0]},${index[1]}`;
+                                if (validIndices.has(indexKey)) {
+                                    replaced = true;
+                                    indicesToRegion[indexKey] = { type: 'sum', target: onlyValue, numberOfCells: 1, indices: [index] }
+                                    regions.push(indicesToRegion[indexKey]);
+                                }
+                            }
+                            if (replaced) {
+                                regions.splice(index, 1);
+                                console.log(`replacing region ${JSON.stringify(entry.indices)} with ${onlyValue}'s`)
+                            }
+                        }
+                    }
+                    else {
+                        entry.combinations = combinations;
+                    }
+                    for (const pipsValue of Object.keys(minNumberOfPipsUsed).map(Number)) {
+                        dominoPartCounts[pipsValue] -= minNumberOfPipsUsed[pipsValue];
+                    }
+                }
+                else if (entry.indices.length === 1 && entry.type === 'greater') {
+                    if (entry.target === '5' && validIndices.has(entry.indices[0].join(','))) {
+                        indicesToRegion[indexKey] = { type: 'sum', target: 6, numberOfCells: 1, indices: [index] }
+                        --dominoPartCounts[6];
+                    }
+                }
+                else if (entry.indices.length === 1 && entry.type === 'less' && validIndices.has(entry.indices[0].join(','))) {
+                    if (entry.target === '1') {
+                        indicesToRegion[indexKey] = { type: 'sum', target: 0, numberOfCells: 1, indices: [index] }
+                        --dominoPartCounts[0];
+                    }
+                }
+                else if (entry.indices.length === 1 && entry.type === 'sum' && validIndices.has(entry.indices[0].join(','))) {
+                    --dominoPartCounts[entry.target];
+                }
             }
+            if (Object.values(dominoPartCounts).some(val => val < 0))
+                return { type: INVALID_ARRANGEMENT, reason: `One of the domino part counts is below 0: ${JSON.stringify(dominoPartCounts)}` };
         }
     }
 
@@ -744,32 +843,6 @@ export const solve = async () => {
     }
 
 
-    const updateDominoPartCounts = () => {
-        dominoPartCounts = { ...initialDominoPartCounts }
-        for (const domino of foundDominoes) {
-            dominoPartCounts[domino[0]] -= 1;
-            dominoPartCounts[domino[1]] -= 1;
-        }
-        for (const entry of regions) {
-            if (entry.type === 'sum') {
-                // the reason for checking if the index is in validIndices (the indices of the cells which haven't been assigned any domnino yet)
-                // is because when you add a domino there, the sum will go to 0 and which will subtract from the number of 0's
-                // and then you will get an invalid configuration because the number of 0 is below 0 (which isn't really true.)
-                if (entry.indices.length === 1 && validIndices.has(entry.indices[0].join(',')))
-                    dominoPartCounts[entry.target] -= 1;
-                else if (entry.target > 7 && entry.target % 6 === 1) {// e.g. if it is 11, 17 and so on...
-                    const sixesToSubtract = Math.trunc(entry.target / 6);
-                    dominoPartCounts[6] -= sixesToSubtract;
-                    dominoPartCounts[5] -= 1;
-                }
-                if (Object.values(dominoPartCounts).some(val => val < 0))
-                    return { type: INVALID_ARRANGEMENT, reason: `One of the domino part counts is below 0: ${JSON.stringify(dominoPartCounts)}` };
-            }
-        }
-        //console.log(dominoPartCounts);
-        return true;
-    }
-
 
 
     const satisfiesRegionConditions = (row, col, dominoPart) => {
@@ -781,15 +854,16 @@ export const solve = async () => {
 
             // min value of a cell is (number of cells - 1) * 6 (the value you would need to put if all other cells were maxed)
             // but what if it's two cells that equal to 3, then the min is just 0?
-
             // to improve this, you can find the max that you can create with your current domino configuration.
             // If you are missing or need to use some 6's, it could be different from what is currently calculated.
-
-            let minDominoPart = Math.max(0, regionCondition.target - (regionCondition.numberOfCells - 1) * 6);
+            // let minDominoPart = Math.max(0, regionCondition.target - (regionCondition.numberOfCells - 1) * 6);
             // max value of a cell is 6 if there the region cell count is greater than 1.
             // let maxDominoPart = 6;
 
-            return dominoPart >= minDominoPart && dominoPart <= regionCondition.target;
+            // return dominoPart >= minDominoPart && dominoPart <= regionCondition.target;
+
+            // e.g., if a cell is a region of 2 which sums to 12, then both are 6 so everything apart from 6 in unusedPipsValues.
+            return !regionCondition.unusedPipsValues.has(dominoPart);
         }
         else if (regionCondition.type === 'equals') {
             // if we have determined that there are only certain values that the equals can contain, then check if this value is one of them.
@@ -805,15 +879,22 @@ export const solve = async () => {
         }
         else if (regionCondition.type === 'less') {
             // if there is more than one cell, is there some special case to consider?
-            return dominoPart < regionCondition.target;
+            // return dominoPart < regionCondition.target;
+
+            // how is this different from just returning what's above? 
+            // An example: if you have one zeros and you have a less than 3 in 3 cells, then if you add a two in one cell, there would be no way of completing the other two.
+            // so (2, 0, 0) wouldn't be a valid combination and 2 could even be an invalid domino part to use here.
+            if (regionCondition.numberOfCells === 1)
+                return dominoPart < regionCondition.target;
+            return !regionCondition.unusedPipsValues.has(dominoPart);
         }
         else if (regionCondition.type === 'greater') {
             if (regionCondition.numberOfCells === 1)
                 return dominoPart > regionCondition.target;
-            let minDominoPart = Math.max(0, regionCondition.target + 1 - (regionCondition.numberOfCells - 1) * 6);
 
-            return dominoPart >= minDominoPart && dominoPart <= regionCondition.target;
-
+            // let minDominoPart = Math.max(0, regionCondition.target + 1 - (regionCondition.numberOfCells - 1) * 6);
+            // return dominoPart >= minDominoPart && dominoPart <= regionCondition.target;
+            return !regionCondition.unusedPipsValues.has(dominoPart);
         }
         else if (regionCondition.type === 'empty') {
             return true;
@@ -868,13 +949,17 @@ export const solve = async () => {
 
 
     const runRules = (silenced = false) => {
-        let result = runUntilNoDefinitePlacements(silenced);
-        if (result?.type !== INVALID_ARRANGEMENT && result.foundPlacements.length === 0) {
-            updateSumMultipleOfSixAndZeroes();
-            result = updateDominoPartCounts();
-            if (result?.type !== INVALID_ARRANGEMENT) {
-                updateEqualsRegions();
-                result = runUntilNoDefinitePlacements(silenced);
+        let result = updateRegionsAndDominoPartCounts();
+        if (result?.type !== INVALID_ARRANGEMENT) {
+            result = runUntilNoDefinitePlacements(silenced);
+            if (result?.type !== INVALID_ARRANGEMENT && result.foundPlacements.length === 0) {
+                // updateSumMultipleOfSixAndZeroes();
+                // result = updateDominoPartCounts();
+                if (result?.type !== INVALID_ARRANGEMENT) {
+                    result = updateEqualsRegions();
+                    if (result?.type !== INVALID_ARRANGEMENT)
+                        result = runUntilNoDefinitePlacements(silenced);
+                }
             }
         }
         return result
