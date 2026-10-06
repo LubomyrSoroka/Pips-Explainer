@@ -120,6 +120,7 @@ export const getCombinations = (target, numberOfCells, type = SUM) => {
             if (Object.keys(combinationObject).some(value => Number(value) > 6 || combinationObject[value] > dominoPartCounts[value])) {
                 // if (Object.keys(combinationObject).some(value => Number(value) > 6)) {
                 combinations.delete(combination);
+                continue;
             }
             for (let i = 0; i <= 6; ++i) {
                 minNumberOfPipsUsed[i] = Math.min(minNumberOfPipsUsed[i], combinationObject[i] ?? 0);

@@ -7,7 +7,8 @@ export let dominoes;
 export let board;
 export let cellsToDirections;
 export let dominoPartCounts;
-export let dominoPartCountHistory;
+export let oneDirectionFromDominoEliminationCells = new Set();
+//export let dominoPartCountHistory;
 
 export const DOWN = 'down'
 export const UP = 'up'
@@ -28,9 +29,17 @@ export const getOtherIndex = ([i, j], direction) => {
 }
 
 import { getCombinations } from "./GetCombinations.js";
+import { createsOddCountArea } from "./createsOddCountArea.js";
+
+export let validIndices = new Set();
+
+export const setValidIndices = (newValidIndices) => {
+    validIndices = newValidIndices;
+}
+
 
 export const solve = async () => {
-    dominoPartCountsHistory = [];
+    //dominoPartCountHistory = [];
     cellsToDirections = [];
     finalSolution = [];
     invalidRoots = new Map();
@@ -38,7 +47,7 @@ export const solve = async () => {
     initialDominoPartCounts = null;
 
     let indicesToRegion = {};
-    let validIndices = new Set();
+    validIndices = new Set();
 
 
     const hasDouble = {
@@ -68,7 +77,9 @@ export const solve = async () => {
     let regions = [];
     const getBoardCoords = (board) => {
         let previousIndex;
-        board.forEach((entry) => {
+
+        const boardCopy = structuredClone(board);
+        boardCopy.forEach((entry) => {
             previousIndex = null;
             entry.indices.forEach((index) => {
                 if (entry.type === 'unequal') {
@@ -138,7 +149,6 @@ export const solve = async () => {
     const MEDIUM = 'medium';
     const HARD = 'hard';
 
-    const CONNECTED = 'connected';
 
     const canPlaceDomino = () => {
         return dominoes.length > foundDominoes.length;
@@ -186,73 +196,131 @@ export const solve = async () => {
 
     // map from each cell to the directions that this cell can take
     let validCellsToDirections = new Map();
-    const cellCoordinatesToIgnore = new Set();
+    let cellCoordinatesToIgnore = new Set();
     let updatedStructureOnce = false;
 
     const updateStructure = () => {
         // find all placements which can only take one value.
         // put a fake domino there and repeat this process until you can't find any more guaranteed placemnets or have no more dominoes to fill on the board.
 
-        // need to update: if in all other directions no domino satifies the conditions (so there are only dominoes that satisfy the conditions of the cell in one direction).
-        // then you know the direction of the cell and can update other cells accordingly.
-        const originalValidIndices = new Set(validIndices);
-        let hasOneDirectionCell = false;
-        do {
-            hasOneDirectionCell = false;
-            for (const [i, j] of Array.from(validIndices).map(indices => indices.split(',').map(Number))) {
-                if (updatedStructureOnce && (!validCellsToDirections.get(`${i},${j}`) || validCellsToDirections.get(`${i},${j}`).length === 1)) {
-                    continue;
-                }
-                if (cellCoordinatesToIgnore.has(`${i},${j}`)) {
-                    continue;
-                }
-                const additions = [[DOWN, 1, 0], [UP, -1, 0], [LEFT, 0, -1], [RIGHT, 0, 1]]
-                let validDirectionCount = 0;
-                let otherIndex = null;
-                const otherIndices = [];
-                const validDirections = [];
-                let validOtherIndex = null;
-
-                for (const [direction, deltaRow, deltaCol] of additions) {
-                    otherIndex = [i + deltaRow, j + deltaCol];
-                    //if (!cellCoordinatesToIgnore.get(`${i},${j}`)?.has(`${otherIndex[0]},${otherIndex[1]}`)) {
-                    if (isOutOfBounds(i + deltaRow, j + deltaCol))
+        oneDirectionFromDominoEliminationCells = new Set();
+        const func = () => {
+            let hasOneDirectionCell = false;
+            do {
+                hasOneDirectionCell = false;
+                const originalConditionsPointer = indicesToRegion;
+                const originalRegionsPointer = regions;
+                for (const [i, j] of Array.from(validIndices).map(indices => indices.split(',').map(Number))) {
+                    if (updatedStructureOnce && (!validCellsToDirections.get(`${i},${j}`) || validCellsToDirections.get(`${i},${j}`).length === 1)) {
                         continue;
-                    let hasValid = false;
+                    }
+                    if (cellCoordinatesToIgnore.has(`${i},${j}`)) {
+                        continue;
+                    }
+                    const additions = [[DOWN, 1, 0], [UP, -1, 0], [LEFT, 0, -1], [RIGHT, 0, 1]]
+                    let otherIndex = null;
+                    const otherIndices = [];
+                    const validDirections = [];
+                    let validOtherIndex = null;
+                    let hasInvalidatedDirectionFromDominoes = false;
 
-                    outerDominoLoop: for (const domino of dominoes) {
-                        for (const flip of [0, 1]) {
-                            if (!satisfiesRegionConditions(i, j, flip ? domino[1] : domino[0]))
+                    for (const [direction, deltaRow, deltaCol] of additions) {
+                        otherIndex = [i + deltaRow, j + deltaCol];
+                        if (isOutOfBounds(i + deltaRow, j + deltaCol))
+                            continue;
+                        let hasValid = false;
+
+                        outerDominoLoop: for (const domino of dominoes) {
+                            if (foundDominoes.some(foundDomino => foundDomino[0] === domino[0] && foundDomino[1] === domino[1]))
                                 continue;
-                            hasValid = check(i, j, domino, direction, flip);
-                            if (hasValid)
-                                break outerDominoLoop;
+                            for (const flip of [0, 1]) {
+                                if (!satisfiesRegionConditions(i, j, flip ? domino[1] : domino[0]))
+                                    continue;
+                                ({ indicesToRegion, regions } = structuredClone({ indicesToRegion: originalConditionsPointer, regions: originalRegionsPointer }));
+                                adjustConditions([{ cell: [i, j], value: domino[flip ? 1 : 0] }]);
+                                hasValid = check(i, j, domino, direction, flip);
+                                indicesToRegion = originalConditionsPointer;
+                                regions = originalRegionsPointer;
+                                if (hasValid)
+                                    break outerDominoLoop;
+                            }
+                        }
+                        if (hasValid) {
+                            validOtherIndex = [...otherIndex];
+                            validDirections.push(direction);
+                            otherIndices.push(otherIndex);
+                        }
+                        else {
+                            hasInvalidatedDirectionFromDominoes = true;
                         }
                     }
-                    if (hasValid) {
-                        validDirectionCount += 1;
-                        validOtherIndex = [...otherIndex];
-                        validDirections.push(direction);
-                        otherIndices.push(otherIndex);
+
+                    if (validDirections.length === 1) {
+                        validIndices.delete(`${i},${j}`)
+                        validIndices.delete(`${validOtherIndex[0]},${validOtherIndex[1]}`)
+                        validCellsToDirections.delete(`${validOtherIndex[0]},${validOtherIndex[1]}`)
+                        hasOneDirectionCell = true;
+                        cellCoordinatesToIgnore.add(`${validOtherIndex[0]},${validOtherIndex[1]}`);
+                        if (hasInvalidatedDirectionFromDominoes) {
+                            oneDirectionFromDominoEliminationCells.add(`${i},${j}`)
+                        }
                     }
-                    //}
+                    validCellsToDirections.set(`${i},${j}`, validDirections);
                 }
-                if (validDirectionCount === 1) {
-                    validIndices.delete(`${i},${j}`)
-                    validIndices.delete(`${validOtherIndex[0]},${validOtherIndex[1]}`)
-                    validCellsToDirections.delete(`${validOtherIndex[0]},${validOtherIndex[1]}`)
-                    hasOneDirectionCell = true;
-                    cellCoordinatesToIgnore.add(`${validOtherIndex[0]},${validOtherIndex[1]}`);
+            } while (hasOneDirectionCell);
+        }
+        const originalValidIndices = new Set(validIndices);
+        func();
+
+        //const singlePlacementCells = Array.from(validCellsToDirections.entries()).filter(([cell, directions]) => directions.length === 1);
+        //finalSolution.push({ dominoEntry: null, reasoning: null, singlePlacementCells, additionalCellsThatGiveStructure: null, oneDirectionFromDominoEliminationCells })
+
+        updatedStructureOnce = false;
+        for (const [i, j] of Array.from(validCellsToDirections.keys()).map(indices => indices.split(',').map(Number))) {
+            const directions = validCellsToDirections.get(`${i},${j}`);
+            if (!directions || directions.length === 1)
+                continue;
+            let singlePossibilityCellsInCommon = null;
+            const originalValidIndices = new Set(validIndices);
+            for (const direction of directions) {
+                validIndices.delete(`${i},${j}`);
+                const otherIndex = getOtherIndex([i, j], direction);
+                validIndices.delete(`${otherIndex[0]},${otherIndex[1]}`);
+                const originalValidCellsToDirections = new Map(validCellsToDirections);
+                const originalCellCoordinatesToIgnore = new Set(cellCoordinatesToIgnore);
+                const originalSinglePossibilityCellsKeys = new Set(Array.from(validCellsToDirections.entries()).filter(([cell, directions]) => directions.length === 1).map(([cell, directions]) => cell));
+                const originalOneDirectionFromDominoEliminationCells = new Set(oneDirectionFromDominoEliminationCells);
+                validCellsToDirections.set(`${i},${j}`, [direction])
+                validCellsToDirections.delete(`${otherIndex[0]},${otherIndex[1]}`);
+                cellCoordinatesToIgnore.add(`${otherIndex[0]},${otherIndex[1]}`);
+                func();
+                oneDirectionFromDominoEliminationCells = originalOneDirectionFromDominoEliminationCells;
+                const newSinglePossibilityCells = new Map(Array.from(validCellsToDirections.entries()).filter(([cell, directions]) => directions.length === 1 && !originalSinglePossibilityCellsKeys.has(cell)));
+                if (!singlePossibilityCellsInCommon) {
+                    singlePossibilityCellsInCommon = newSinglePossibilityCells;
+                } else {
+                    singlePossibilityCellsInCommon = new Map(Array.from(newSinglePossibilityCells.entries()).filter(([cell, directions]) => singlePossibilityCellsInCommon.has(cell) && JSON.stringify(singlePossibilityCellsInCommon.get(cell)) === JSON.stringify(directions)));
                 }
-                // else if (validDirectionCount === 0) {
-                //     // then you must've already put a domino here?
-                //     continue;
-                // }
-                validCellsToDirections.set(`${i},${j}`, validDirections);
+                validIndices = new Set(originalValidIndices);
+                validCellsToDirections = originalValidCellsToDirections;
+                cellCoordinatesToIgnore = originalCellCoordinatesToIgnore;
             }
-        } while (hasOneDirectionCell);
+            for (const [cell, directions] of singlePossibilityCellsInCommon ?? []) {
+                validCellsToDirections.set(cell, directions);
+                validIndices.delete(cell);
+                const otherIndex = getOtherIndex(cell.split(',').map(Number), directions[0]);
+                validCellsToDirections.delete(otherIndex.join(','));
+                cellCoordinatesToIgnore.add(otherIndex.join(','));
+                validIndices.delete(`${otherIndex[0]},${otherIndex[1]}`);
+            }
+            if (singlePossibilityCellsInCommon && singlePossibilityCellsInCommon.size > 0) {
+                finalSolution.push({ dominoEntry: null, reasoning: `Altered structure due to all directions implying same structure at cell ${i},${j}`, singlePlacementCells: Array.from(singlePossibilityCellsInCommon.entries()), additionalCellsThatGiveStructure: [i, j], oneDirectionFromDominoEliminationCells })
+            }
+        }
+
+        validIndices = originalValidIndices;
         updatedStructureOnce = true;
-        validIndices = new Set(originalValidIndices);
+        //validIndices = new Set(originalValidIndices);
     }
 
 
@@ -265,7 +333,7 @@ export const solve = async () => {
 
         const originalConditionsPointer = indicesToRegion;
         const originalRegionsPointer = regions;
-        const originalValidCellsToDirections = validCellsToDirections;
+        const originalValidCellsToDirectionsValue = new Map(validCellsToDirections);
         let minPossiblePlacementsCount = Infinity;
 
         nextCell: for (const [i, j] of Array.from(validCellsToDirections.keys()).map(key => key.split(',').map(Number))) {
@@ -301,8 +369,8 @@ export const solve = async () => {
                     if (!satisfiesRegionConditions(i, j, domino[k]))
                         continue;
 
-
                     adjustConditions([{ cell: [i, j], value: domino[k] }])
+                    // why don't you call getCombinations here?
 
                     for (const direction of validDirections) {
                         // if there are only two options to consider (like in a corner) and only one of them is possible, then you must place the domino there.
@@ -349,6 +417,7 @@ export const solve = async () => {
                 // but it is also used to check if a domino collides with another one.
                 validIndices.delete(`${i},${j}`);
                 validIndices.delete(`${otherIndices[0]},${otherIndices[1]}`);
+
                 updateStructure();
                 const dominoEntry = {
                     cell: [i, j],
@@ -357,12 +426,12 @@ export const solve = async () => {
                     flipped: validFlipped
                 }
                 if (!silenced) {
-                    // console.log("added domino", dominoEntry)
-                    finalSolution.push({ dominoEntry, reasoning: reasoningOnlyOneDomino });
-                    dominoPartCountHistory.push(...dominoPartCounts);
+                    const singlePlacementCells = Array.from(validCellsToDirections).filter(([cell, directions]) => directions.length === 1);
+                    finalSolution.push({ dominoEntry, reasoning: reasoningOnlyOneDomino, singlePlacementCells, additionalCellsThatGiveStructure: null, oneDirectionFromDominoEliminationCells });
+                    //dominoPartCountHistory.push({ ...dominoPartCounts });
 
                     // this returns the map with all directions after inserting each cell.
-                    cellsToDirections.push(structuredClone(validCellsToDirections));
+                    //cellsToDirections.push(structuredClone(validCellsToDirections));
                 }
 
                 foundAreasAndDominoes.push(dominoEntry);
@@ -373,19 +442,15 @@ export const solve = async () => {
             else if (validCount === 0) {
                 indicesToRegion = originalConditionsPointer;
                 regions = originalRegionsPointer;
-                validCellsToDirections = originalValidCellsToDirections;
+                validCellsToDirections = originalValidCellsToDirectionsValue;
 
                 return { type: INVALID_ARRANGEMENT, cells: [[i, j]], reason: `No domino can fit in this cell`, lastPlacements: foundAreasAndDominoes };
             }
         }
 
-        // if (foundAreasAndDominoes.length > 0)
-        //     return { foundPlacements: foundAreasAndDominoes };
-        // else
-        //     return { possiblePlacements: possibleDominoPlacements };
         indicesToRegion = originalConditionsPointer;
         regions = originalRegionsPointer;
-        validCellsToDirections = originalValidCellsToDirections;
+        //validCellsToDirections = originalValidCellsToDirections;
         return { foundPlacements: foundAreasAndDominoes, possiblePlacements: possibleDominoPlacementsSmallest };
     }
 
@@ -402,7 +467,7 @@ export const solve = async () => {
         let validOption = null;
         const originalConditionsPointer = indicesToRegion;
         const originalRegionsPointer = regions;
-        const originalValidCellsToDirections = validCellsToDirections;
+        const originalValidCellsToDirections = structuredClone(validCellsToDirections);
         let lastAddedToFinalSolution = [];
 
         class TreeNode {
@@ -513,8 +578,10 @@ export const solve = async () => {
                     // it's already saved in roots.
 
 
-                    finalSolution.push({ dominoEntry, reasoning });
-                    dominoPartCountHistory.push(...dominoPartCounts);
+                    const singlePlacementCells = Array.from(validCellsToDirections).filter(([cell, directions]) => directions.length === 1);
+                    finalSolution.push({ dominoEntry, reasoning, singlePlacementCells, additionalCellsThatGiveStructure: null, oneDirectionFromDominoEliminationCells });
+                    cellsToDirections.push(structuredClone(validCellsToDirections));
+                    //dominoPartCountHistory.push({ ...dominoPartCounts });
 
                     foundDominoes.push(validOption.domino);
                     const otherIndices = getOtherIndex(validOption.cell, validOption.direction);
@@ -542,7 +609,7 @@ export const solve = async () => {
                     do {
                         previousPlacements.push(currentNode.value);
                         currentNode = currentNode.parent;
-                    } while (currentNode && !finalSolution.some(entry => entry.dominoEntry.domino === currentNode.value.domino));
+                    } while (currentNode && !finalSolution.some(entry => entry.dominoEntry?.domino === currentNode.value.domino));
 
                     lastAddedToFinalSolution.push(...(previousPlacements).map(placement => {
                         return {
@@ -556,7 +623,10 @@ export const solve = async () => {
                     lastAddedToFinalSolution.push(...(result?.foundPlacements).map(placement => {
                         return {
                             dominoEntry: placement,
-                            reasoning: reasoningOnlyOneDomino
+                            reasoning: reasoningOnlyOneDomino,
+                            singlePlacementCells: [],
+                            additionalCellsThatGiveStructure: null,
+                            oneDirectionFromDominoEliminationCells: new Set()
                         }
                     }));
                     // uncomment this to return only the first solution.
@@ -615,6 +685,11 @@ export const solve = async () => {
             const modificationCellKey = `${modification.cell[0]},${modification.cell[1]}`;
             const regionCondition = indicesToRegion[modificationCellKey];
 
+            const index = regionCondition.indices.map(index => `${index[0]},${index[1]}`).indexOf(modificationCellKey);
+            if (index !== -1) {
+                regionCondition.indices.splice(index, 1);
+            }
+
             if (regionCondition.type === 'sum') {
                 // regionCondition.indices.forEach(index => {
                 //     const indexKey = `${index[0]},${index[1]}`;
@@ -670,74 +745,6 @@ export const solve = async () => {
             }
         }
     }
-
-    // const updateSumMultipleOfSixAndZeroes = () => {
-    //     for (const [index, entry] of regions.entries()) {
-    //         if (entry.type === 'sum') {
-    //             if (entry.indices.length >= 2 && entry.target > 12 && entry.target % 6 === 0) {
-    //                 const replaced = false;
-    //                 for (const index of entry.indices) {
-    //                     const indexKey = `${index[0]},${index[1]}`;
-    //                     if (validIndices.has(indexKey)) {
-    //                         replced = true;
-    //                         indicesToRegion[indexKey] = { type: 'sum', target: 6, numberOfCells: 1, indices: [index] }
-    //                         regions.push(indicesToRegion[indexKey]);
-    //                     }
-    //                 }
-    //                 if (replaced) {
-    //                     regions.splice(index, 1);
-    //                     console.log(`replacing region ${JSON.stringify(entry.indices)} with 6's`)
-    //                 }
-    //             }
-    //             else if (entry.indices.length >= 2 && entry.target === 0) {
-    //                 let replaced = false;
-    //                 for (const index of entry.indices) {
-    //                     const indexKey = `${index[0]},${index[1]}`;
-    //                     if (validIndices.has(indexKey)) {
-    //                         replaced = true;
-    //                         indicesToRegion[indexKey] = { type: 'sum', target: 0, numberOfCells: 1, indices: [index] }
-    //                         regions.push(indicesToRegion[indexKey]);
-    //                     }
-    //                 }
-    //                 if (replaced) {
-    //                     console.log(`replacing region ${JSON.stringify(entry.indices)} with 0's`)
-    //                     regions.splice(index, 1);
-    //                 }
-    //             }
-    //         }
-    //         if (entry.type === 'greater') {
-    //             // convert >5 to 6 if one cell, >11 to 12 (or two 6's if two cells), etc.
-
-    //         }
-    //     }
-    // }
-
-    // const updateDominoPartCounts = () => {
-    //     dominoPartCounts = { ...initialDominoPartCounts }
-    //     for (const domino of foundDominoes) {
-    //         dominoPartCounts[domino[0]] -= 1;
-    //         dominoPartCounts[domino[1]] -= 1;
-    //     }
-    //     for (const entry of regions) {
-    //         if (entry.type === 'sum') {
-    //             // the reason for checking if the index is in validIndices (the indices of the cells which haven't been assigned any domnino yet)
-    //             // is because when you add a domino there, the sum will go to 0 and which will subtract from the number of 0's
-    //             // and then you will get an invalid configuration because the number of 0 is below 0 (which isn't really true.)
-    //             if (entry.indices.length === 1 && validIndices.has(entry.indices[0].join(',')))
-    //                 dominoPartCounts[entry.target] -= 1;
-    //             else if (entry.target > 7 && entry.target % 6 === 1) {// e.g. if it is 11, 17 and so on...
-    //                 const sixesToSubtract = Math.trunc(entry.target / 6);
-    //                 dominoPartCounts[6] -= sixesToSubtract;
-    //                 dominoPartCounts[5] -= 1;
-    //             }
-    //             if (Object.values(dominoPartCounts).some(val => val < 0))
-    //                 return { type: INVALID_ARRANGEMENT, reason: `One of the domino part counts is below 0: ${JSON.stringify(dominoPartCounts)}` };
-    //         }
-    //     }
-    //     //console.log(dominoPartCounts);
-    //     return true;
-    // }
-
     // updates the allowable combinations of each sum area based on the user's avaiable inputs.
     // e.g, if the user doesn't have a 4 and there are two cells with sum 9, then it must be made with 3 and 6 So update the counts for those halves.
     const updateRegionsAndDominoPartCounts = () => {
@@ -749,14 +756,14 @@ export const solve = async () => {
         for (const [index, entry] of regions.entries()) {
             if (entry.type === 'sum' || entry.type === 'greater' || entry.type === 'less') {
                 if (entry.indices.length > 1) {
-                    const {  totalCombinations: combinations, minNumberOfPipsUsed, unusedPipsValues } = getCombinations(entry.target, entry.indices.length, entry.type);
+                    const { totalCombinations: combinations, minNumberOfPipsUsed, unusedPipsValues } = getCombinations(entry.target, entry.indices.length, entry.type);
                     entry.unusedPipsValues = unusedPipsValues;
                     if (combinations.size === 0) {
-                        return { type: INVALID_ARRANGEMENT, reason: `For the ${JSON.stringify(entry.indices)} region, there is no combinations of pips values that sum to ${entry.target}.` }
+                        return { type: INVALID_ARRANGEMENT, reason: `For the ${JSON.stringify(entry.indices)} region, there is no combinations of pips values that ${entry.type === 'sum' ? 'sum to' : entry.type === 'greater' ? 'are greater than' : 'are less than'} ${entry.target}.` }
                     }
                     else if (combinations.size === 1) {
                         let onlyValue = -1;
-                        const firstCombo = combinations.values().next().value;
+                        const firstCombo = JSON.parse(combinations.values().next().value);
                         let numberOfNonZeroEntries = 0;
                         for (const key of Object.keys(firstCombo).map(Number)) {
                             if (firstCombo[key] > 0) {
@@ -957,8 +964,6 @@ export const solve = async () => {
         if (result?.type !== INVALID_ARRANGEMENT) {
             result = runUntilNoDefinitePlacements(silenced);
             if (result?.type !== INVALID_ARRANGEMENT && result.foundPlacements.length === 0) {
-                // updateSumMultipleOfSixAndZeroes();
-                // result = updateDominoPartCounts();
                 if (result?.type !== INVALID_ARRANGEMENT) {
                     result = updateEqualsRegions();
                     if (result?.type !== INVALID_ARRANGEMENT)

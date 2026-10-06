@@ -1,0 +1,28 @@
+Oct. 11, 2026 Hard:
+Look at photo
+On photo2, the error is related to altered strucutre due to all paths implying the same structure thing.
+
+Oct. 10, 2026 Medium:
+It guesses [2, 1] up from the <3 square first. Ok, but then it should immediately get the one from the equals instead of guessing again.
+
+Oct. 10, 2026 Easy:
+After it places the first two pieces down, it won't place down anymore.
+
+Oct. 4, 2026 Medium:
+" For the [[2,1],[2,2]] region, there is no combinations of pips values that sum to 9."
+There is one six and one three, so I was confused by this, but it is possible it is eliminating those because there is another 9 region in 2 cells.
+It would need to explain that though.
+Also, it skips the possibility that [2,2] is entirely within the equals region.
+
+September 15, 2025 hard
+It's just a blank screen
+
+Imporvement:
+Oct 5. Hard
+can deduce the 
+
+Code error?
+In explainer.js, after adjusting conditions, the combinations of any adjusted areas should be checked again.
+
+Refactor:
+make foundDominoes a set and not a list.

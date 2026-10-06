@@ -1,5 +1,5 @@
 import { solve } from './explainer.js'
-import { draw } from './draw.js'
+import { draw } from './draw/draw.js'
 
 
 const getPuzzle = async () => {
