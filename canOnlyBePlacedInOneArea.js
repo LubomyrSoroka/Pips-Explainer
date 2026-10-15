@@ -1,0 +1,107 @@
+import { dominoes, validCellsToDirections, check, adjustConditions, satisfiesRegionConditions, copyIndicesAndRegions, resetIndicesAndRegions, foundDominoes, finalSolution } from "./explainer.js"
+
+const dominoToPlacements = [];
+
+export const rule_canOnlyBePlacedInOneArea = (originalConditionsPointer, originalRegionsPointer, silenced) => {
+
+    // const originalConditionsPointer = indicesToRegion;
+    // const originalRegionsPointer = regions;
+
+    const foundPlacements = [];
+    for (const domino of dominoes) {
+        if (foundDominoes.includes(domino))
+            continue;
+        for (const flip of [0, 1]) {
+            // consider the domino in each orientation in each cell. Many times, one of the ends will be out of bounds (can obviously disqualify that)
+            for (const [i, j] of Array.from(validCellsToDirections.keys()).map(key => key.split(',').map(Number))) {
+                copyIndicesAndRegions(originalConditionsPointer, originalRegionsPointer);
+                if (!satisfiesRegionConditions(i, j, flip ? domino[1] : domino[0]))
+                    continue;
+
+                adjustConditions([{ cell: [i, j], value: domino[flip ? 1 : 0] }]);
+                for (const direction of validCellsToDirections.get(`${i},${j}`)) {
+                    let result = check(i, j, domino, direction, flip === 1);
+                    if (result) {
+                        dominoToPlacements[JSON.stringify(domino)] ??= [];
+                        dominoToPlacements[JSON.stringify(domino)].push({ region: [i, j], flipped: flip, direction: direction });
+                        // regionToPlacements[JSON.stringify([i, j])] ??= [];
+                        // regionToPlacements[JSON.stringify([i, j])].push({ domino: domino, flipped: flip });
+                    }
+                }
+            }
+        }
+    }
+
+    for (const [domino, placements] of Object.entries(dominoToPlacements)) {
+        // if it's 0, then the configuration is invalid... this can be a useful alternative to the current to add to checking invalid configs.
+
+        // for an example of where this rule can be applied, consider Oct. 18, 2026 Easy. [4, 3] must go in the bottom with the 3 in the nine region.
+        if (placements.length === 0) {
+
+        }
+        else if (placements.length === 1) {
+            // place the domino at its only location.
+            const dominoEntry = {
+                cell: placements[0].region,
+                flipped: placements[0].flipped,
+                domino: JSON.parse(domino),
+                direction: placements[0].direction,
+            }
+            const placement = { dominoEntry, reasoning: `Added through rule_canOnlyBePlacedInOneArea` }
+            if(!silenced){
+                finalSolution.push(placement);
+            }
+            foundPlacements.push(placement);
+            foundDominoes.push(JSON.parse(domino));
+        }
+        // imagine this scenario: one cell region has exactly two placements (including flips) and another region has the exact same two placements.
+        // then if a third region has those two placements plus one more, you can remove those two placements that are used in the other regions.
+
+        // one way to figure this out is to try to remove all the dominoes from one region: If you remove the first domino from that region, this implies
+        // that you must place the other domino in the other region with only the two placements. Finally, this implies that in the region with three placements, you would have to put the other domino that's not in the other two regions.
+        // if you done start off by removing the other domino from the first region, it would imply the same thing. Therefore, you can deduce the placement of the domino in the third region.
+
+        // simpler situation: a region has two possibilities of a domino flipped. Another has a possiblity of either that domino or that another domino only one way flipped.
+        // using the same process, you would deduce that the other region must use that other domino.
+        // else {
+        //     const dominoesRemovedInCommon = new Set();
+        //     for (const regionToRemove of placements) {
+        //         regionsToRemove = [regionToRemove];
+        //         const dominoToPlacementsCopy = structuredClone(dominoToPlacements);
+        //         let firstIteration = true;
+        //         let dominoesRemoved = new Set();
+        //         do {
+        //             let currentRegion = regionsToRemove.pop();
+        //             for (const [dominoCopy, placementsCopy] of dominoToPlacementsCopy) {
+
+        //                 if (dominoCopy[0] === domino[0] && dominoCopy[1] === domino[1])
+        //                     continue;
+        //                 // should you also check that this domino isn't one that was already removed?
+        //                 dominoToPlacementsCopy[dominoCopy] = placementsCopy.filter(({ region, flipped, direction }) => region !== currentRegion);
+        //                 if (dominoToPlacementsCopy[dominoCopy].length === 1) {
+        //                     regionsToRemove.push(dominoToPlacementsCopy[dominoCopy][0].region);
+        //                     dominoesRemoved.add(JSON.stringify({ domino: dominoCopy[0], flipped: dominoToPlacementsCopy[dominoCopy][0].flipped, direction: dominoToPlacementsCopy[dominoCopy][0].direction, region: dominoToPlacementsCopy[dominoCopy][0].region }));
+        //                     //dominoesRemoved.add(JSON.stringify(dominoCopy[0]));
+        //                 }
+        //             }
+        //         } while (regionsToRemove.length > 0);
+
+        //         if (firstIteration)
+        //             dominoesRemovedInCommon = dominoesRemoved;
+        //         else
+        //             dominoesRemovedInCommon = dominoesRemovedInCommon.intersection(dominoesRemoved);
+        //         firstIteration = false;
+        //     }
+        //     for (const dominoPlacement of dominoesRemovedInCommon) {
+        //         const { domino, flipped, direction, region } = JSON.parse(dominoPlacement);
+        //         foundPlacements.push({ dominoEntry: { cell: region, flipped, domino, direction }, reasoning: `Added through rule_canOnlyBePlacedInOneArea and because all placements of valid dominoes at ${region} imply these same placements` });
+        //     }
+        // }
+    }
+
+    resetIndicesAndRegions(originalConditionsPointer, originalRegionsPointer)
+    //copyIndicesAndRegions(originalConditionsPointer, originalRegionsPointer);
+
+    return {foundPlacements};
+}
+

@@ -20,7 +20,7 @@ export const clickNext = async (direction) => {
     backButton.removeEventListener('click', clickBackward);
 
     currentIndex += direction;
-    const { dominoEntry, reasoning, singlePlacementCells, additionalCellsThatGiveStructure, oneDirectionFromDominoEliminationCells } = finalSolution[currentIndex !== -1 ? currentIndex : 0];
+    const { dominoEntry = undefined, reasoning = undefined, singlePlacementCells = new Map(), additionalCellsThatGiveStructure = undefined, oneDirectionFromDominoEliminationCells = new Set() } = finalSolution[currentIndex !== -1 ? currentIndex : 0];
     if (currentIndex === -1)
         backButton.style.display = 'none';
     else

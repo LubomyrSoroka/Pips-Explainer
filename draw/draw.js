@@ -375,6 +375,7 @@ document.addEventListener('keydown', (e) => {
 document.addEventListener('keydown', (e) => {
     if (e.key === 'ArrowDown') {
         nextForWrongPath.click();
+        e.preventDefault();
     }
 })
 
