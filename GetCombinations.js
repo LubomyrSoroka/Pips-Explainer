@@ -132,4 +132,27 @@ export const getCombinations = (target, numberOfCells, type = SUM) => {
     return { totalCombinations, minNumberOfPipsUsed, unusedPipsValues };
 }
 
-//console.log(getCombinationsWithSet(0, 3))
+
+
+// assumes previous valid combinations and the new pip value that you added.
+export const updateCombinations = (previousCombinations, addedValue) => {
+    if (!previousCombinations)
+        return;
+    let newCombinations = new Set();
+    let unusedPipsValues = new Set([0, 1, 2, 3, 4, 5, 6]);
+    for (const combination of previousCombinations) {
+        const combinationObject = JSON.parse(combination);
+        if (combinationObject[addedValue] > 0){
+            const newObject = { ...combinationObject, [addedValue]: combinationObject[addedValue] - 1 }
+            if(newObject[addedValue] === 0)
+                delete newObject[addedValue];
+            newCombinations.add(JSON.stringify(newObject))
+        }
+    }
+
+    for (const combination of newCombinations) {
+        let combinationObject = JSON.parse(combination);
+        unusedPipsValues = unusedPipsValues.difference(new Set(Object.keys(combinationObject).map(Number)));
+    }
+    return { newCombinations, unusedPipsValues };
+}

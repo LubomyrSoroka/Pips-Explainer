@@ -29,7 +29,7 @@ export const getOtherIndex = ([i, j], direction) => {
 }
 
 import { getCombinations } from "./GetCombinations.js";
-import { createsOddCountArea } from "./createsOddCountArea.js";
+import { updateCombinations } from "./GetCombinations.js";
 
 export let validIndices = new Set();
 
@@ -154,46 +154,6 @@ export const solve = async () => {
         return dominoes.length > foundDominoes.length;
     }
 
-    // this rule rarely helps...
-    // dominoes is a 2D array. Each inner array is a pair of values, where the top value is the left of the domino and the bottom is the right of the domino (as they are shown horizontally when opening the game)
-    // const rule_canOnlyBePlacedInOneArea = (dominoes) => {
-    //     // return where it can be placed (if there is really only one place) placeArea[0] is place of left and placeArea[1] is the place of the right.
-    //     let placeArea = [];
-    //     for (domino of dominoes) {
-    //         let placeCount = 0
-    //         // consider the domino in each orientation in each cell. Many times, one of the ends will be out of bounds (can obviously disqualify that)
-    //         for (let i = rowMin; i < rowMax; ++i) {
-    //             if (!rowSet.has(i))
-    //                 continue;
-    //             for (let j = colMin; j < colMax; ++j) {
-    //                 if (!columnSet.has(j))
-    //                     continue;
-    //                 if (rowSet.has(i - 1))
-    //                     placeCount += check(i - 1, j, domino, DOWN);
-    //                 if (placeCount > 1)
-    //                     return false;
-    //                 if (rowSet.has(i + 1))
-    //                     placeCount += check(i + 1, j, domino, UP);
-    //                 if (placeCount > 1)
-    //                     return false;
-    //                 if (columnSet.has(j - 1))
-    //                     placeCount += check(i, j - 1, domino, LEFT);
-    //                 if (placeCount > 1)
-    //                     return false;
-    //                 if (columnSet.has(j + 1))
-    //                     placeCount += check(i, j + 1, domino, RIGHT);
-    //                 if (placeCount > 1)
-    //                     return false;
-    //             }
-    //         }
-    //     }
-    //     // if there is no place to put the cell, then either something is wrong with the puzzle (this shouldn't be possible if it's an official puzzle)
-    //     // or you had placed an earlier cell incorrectly.
-    //     if (placeCount == 0)
-    //         return false;
-    //     return placeArea;
-    // }
-
     // map from each cell to the directions that this cell can take
     let validCellsToDirections = new Map();
     let cellCoordinatesToIgnore = new Set();
@@ -233,6 +193,7 @@ export const solve = async () => {
                         outerDominoLoop: for (const domino of dominoes) {
                             if (foundDominoes.some(foundDomino => foundDomino[0] === domino[0] && foundDomino[1] === domino[1]))
                                 continue;
+                            //------------------------------------------------------------------------------------------------------------------------------------------------------
                             for (const flip of [0, 1]) {
                                 if (!satisfiesRegionConditions(i, j, flip ? domino[1] : domino[0]))
                                     continue;
@@ -243,6 +204,7 @@ export const solve = async () => {
                                 regions = originalRegionsPointer;
                                 if (hasValid)
                                     break outerDominoLoop;
+                                //------------------------------------------------------------------------------------------------------------------------------------------------------
                             }
                         }
                         if (hasValid) {
@@ -314,7 +276,7 @@ export const solve = async () => {
                 validIndices.delete(`${otherIndex[0]},${otherIndex[1]}`);
             }
             if (singlePossibilityCellsInCommon && singlePossibilityCellsInCommon.size > 0 && !silenced) {
-                finalSolution.push({ dominoEntry: null, reasoning: `Altered structure due to all directions implying same structure at cell ${i},${j}`, singlePlacementCells: Array.from(singlePossibilityCellsInCommon.entries()), additionalCellsThatGiveStructure: [i, j], oneDirectionFromDominoEliminationCells })
+                finalSolution.push({ dominoEntry: undefined, reasoning: `Altered structure due to all directions implying same structure at cell ${i},${j}`, singlePlacementCells: Array.from(singlePossibilityCellsInCommon.entries()), additionalCellsThatGiveStructure: [i, j], oneDirectionFromDominoEliminationCells })
             }
         }
 
@@ -364,18 +326,15 @@ export const solve = async () => {
                     if (JSON.stringify(indicesToRegion[key].indices) === JSON.stringify(indicesToRegion[key2].indices) || (indicesToRegion[key].type === 'empty' && indicesToRegion[key2].type === 'empty'))
                         flipCount = 1;
                 }
+                //------------------------------------------------------------------------------------------------------------------------------------------------------
                 for (let k = 0; k < flipCount; ++k) {
                     ({ indicesToRegion, regions } = structuredClone({ indicesToRegion: originalConditionsPointer, regions: originalRegionsPointer }));
                     if (!satisfiesRegionConditions(i, j, domino[k]))
                         continue;
-
                     adjustConditions([{ cell: [i, j], value: domino[k] }])
-                    // why don't you call getCombinations here?
-
                     for (const direction of validDirections) {
                         // if there are only two options to consider (like in a corner) and only one of them is possible, then you must place the domino there.
                         let result = check(i, j, domino, direction, k === 1);
-
                         if (result === true) {
                             validCount++;
                             if (validCount > minPossiblePlacementsCount)
@@ -389,9 +348,8 @@ export const solve = async () => {
                                 direction: validDirection,
                                 flipped: validFlipped
                             }
-
                             possibleDominoPlacementsCurrent.push(dominoEntry);
-
+                            //------------------------------------------------------------------------------------------------------------------------------------------------------
                         }
                     }
                 }
@@ -611,20 +569,22 @@ export const solve = async () => {
             else {
                 if (!canPlaceDomino()) {
                     let currentNode = roots[i];
-                    const previousPlacements = [];
                     lastAddedToFinalSolution = [];
 
                     do {
-                        previousPlacements.push(currentNode.value);
+                        lastAddedToFinalSolution.push({ dominoEntry: currentNode.value, reasoning: 'guess' });
+                        lastAddedToFinalSolution.push(...currentNode.definitePlacements.map(placement => {
+                            return { dominoEntry: placement, reasoning: reasoningOnlyOneDomino }
+                        }));
                         currentNode = currentNode.parent;
                     } while (currentNode && !finalSolution.some(entry => entry.dominoEntry?.domino === currentNode.value.domino));
 
-                    lastAddedToFinalSolution.push(...(previousPlacements).map(placement => {
-                        return {
-                            dominoEntry: placement,
-                            reasoning: 'guess'
-                        }
-                    }));
+                    // lastAddedToFinalSolution.push(...(previousPlacements).map(placement => {
+                    //     return {
+                    //         dominoEntry: placement,
+                    //         reasoning: 'guess'
+                    //     }
+                    // }));
 
                     // console.log(`Solution ${solutionCount++} After trying the following placements: ${JSON.stringify(previousPlacements, null, 2)}`);
                     // console.log(`found Placements ${JSON.stringify(result?.foundPlacements, null, 2)}`)
@@ -706,6 +666,12 @@ export const solve = async () => {
                 // })
                 regionCondition.numberOfCells -= 1;
                 regionCondition.target -= modification.value;
+                const result = updateCombinations(regionCondition.combinations, modification.value);
+                if (result) {
+                    const { unusedPipsValues, combinations } = result;
+                    regionCondition.unusedPipsValues = unusedPipsValues;
+                    regionCondition.combinations = combinations;
+                }
             }
             else if (regionCondition.type === 'set') {
                 // regionCondition.indices.forEach(index => {
@@ -722,8 +688,15 @@ export const solve = async () => {
                 //     indicesToRegion[indexKey].target -= modification.value;
                 //     indicesToRegion[indexKey].numberOfCells -= 1;
                 // })
+
                 regionCondition.numberOfCells -= 1;
                 regionCondition.target -= modification.value;
+                const result = updateCombinations(regionCondition.combinations, modification.value);
+                if (result) {
+                    const { unusedPipsValues, combinations } = result;
+                    regionCondition.unusedPipsValues = unusedPipsValues;
+                    regionCondition.combinations = combinations;
+                }
             }
             else if (regionCondition.type === 'greater') {
                 // regionCondition.indices.forEach(index => {
@@ -733,6 +706,12 @@ export const solve = async () => {
                 // })
                 regionCondition.numberOfCells -= 1;
                 regionCondition.target -= modification.value;
+                const result = updateCombinations(regionCondition.combinations, modification.value);
+                if (result) {
+                    const { unusedPipsValues, combinations } = result;
+                    regionCondition.unusedPipsValues = unusedPipsValues;
+                    regionCondition.combinations = combinations;
+                }
             }
             else if (regionCondition.type === 'equals') {
                 // if you know one value from the equals, then set all of them to be a sum of that single value.
@@ -761,18 +740,21 @@ export const solve = async () => {
             dominoPartCounts[domino[0]] -= 1;
             dominoPartCounts[domino[1]] -= 1;
         }
-        for (const [index, entry] of regions.entries()) {
+        //for (const [index, entry] of regions.entries()) {
+        for (let i = 0; i < regions.length; ++i) {
+            const entry = regions[i];
             if (entry.type === 'sum' || entry.type === 'greater' || entry.type === 'less') {
                 if (entry.indices.length > 1) {
                     const { totalCombinations: combinations, minNumberOfPipsUsed, unusedPipsValues } = getCombinations(entry.target, entry.indices.length, entry.type);
+                    entry.combinations = combinations;
                     entry.unusedPipsValues = unusedPipsValues;
+                    let numberOfNonZeroEntries = 0;
                     if (combinations.size === 0) {
-                        return { type: INVALID_ARRANGEMENT, reason: `For the ${JSON.stringify(entry.indices)} region, there is no combinations of pips values that ${entry.type === 'sum' ? 'sum to' : entry.type === 'greater' ? 'are greater than' : 'are less than'} ${entry.target}.` }
+                        return { type: INVALID_ARRANGEMENT, reason: `For the ${JSON.stringify(entry.indices)} region, there are no combinations of pips values that ${entry.type === 'sum' ? 'sum to' : entry.type === 'greater' ? 'are greater than' : 'are less than'} ${entry.target}.` }
                     }
                     else if (combinations.size === 1) {
                         let onlyValue = -1;
                         const firstCombo = JSON.parse(combinations.values().next().value);
-                        let numberOfNonZeroEntries = 0;
                         for (const key of Object.keys(firstCombo).map(Number)) {
                             if (firstCombo[key] > 0) {
                                 ++numberOfNonZeroEntries;
@@ -782,40 +764,38 @@ export const solve = async () => {
                                 break;
                         }
                         if (numberOfNonZeroEntries === 1) {
-                            let replaced = false;
+                            //let replaced = false;
                             for (const index of entry.indices) {
                                 const indexKey = `${index[0]},${index[1]}`;
-                                if (validIndices.has(indexKey)) {
-                                    replaced = true;
-                                    indicesToRegion[indexKey] = { type: 'sum', target: onlyValue, numberOfCells: 1, indices: [index] }
-                                    regions.push(indicesToRegion[indexKey]);
-                                }
+                                // if (validIndices.has(indexKey)) {
+                                // replaced = true;
+                                indicesToRegion[indexKey] = { type: 'sum', target: onlyValue, numberOfCells: 1, indices: [index] }
+                                regions.push(indicesToRegion[indexKey]);
+                                //}
                             }
-                            if (replaced) {
-                                regions.splice(index, 1);
-                                console.log(`replacing region ${JSON.stringify(entry.indices)} with ${onlyValue}'s`)
-                            }
+                            // if (replaced) {
+                            regions.splice(i--, 1);
+                            console.log(`replacing region ${JSON.stringify(entry.indices)} with ${onlyValue}'s`)
+                            //}
                         }
                     }
-                    else {
-                        entry.combinations = combinations;
-                    }
-                    for (const pipsValue of Object.keys(minNumberOfPipsUsed).map(Number)) {
-                        dominoPartCounts[pipsValue] -= minNumberOfPipsUsed[pipsValue];
-                    }
+                    if (numberOfNonZeroEntries !== 1)
+                        for (const pipsValue of Object.keys(minNumberOfPipsUsed).map(Number)) {
+                            dominoPartCounts[pipsValue] -= minNumberOfPipsUsed[pipsValue];
+                        }
                 }
                 else if (entry.indices.length === 1 && entry.type === 'sum' && validIndices.has(entry.indices[0].join(','))) {
                     --dominoPartCounts[entry.target];
                 }
                 else if (entry.indices.length === 1 && entry.type === 'greater') {
                     if (entry.target === '5' && validIndices.has(entry.indices[0].join(','))) {
-                        indicesToRegion[indexKey] = { type: 'sum', target: 6, numberOfCells: 1, indices: [index] }
+                        indicesToRegion[indexKey] = { type: 'sum', target: 6, numberOfCells: 1, indices: [i] }
                         --dominoPartCounts[6];
                     }
                 }
                 else if (entry.indices.length === 1 && entry.type === 'less' && validIndices.has(entry.indices[0].join(','))) {
                     if (entry.target === '1') {
-                        indicesToRegion[indexKey] = { type: 'sum', target: 0, numberOfCells: 1, indices: [index] }
+                        indicesToRegion[indexKey] = { type: 'sum', target: 0, numberOfCells: 1, indices: [i] }
                         --dominoPartCounts[0];
                     }
                 }
@@ -944,8 +924,6 @@ export const solve = async () => {
     const date = new Date(document.querySelector('#puzzle-date').value);
     const difficulty = document.querySelector('#puzzle-difficulty').value.toLowerCase();
 
-    // const date = new Date('2026-09-23T00:00:00Z'); // leave the part after T to ensure that this is in UTC. That way when converting the date to string, it doesn't change based on your timezone.
-    // const difficulty = HARD;
     const allData = await fetch(`https://www.nytimes.com/svc/pips/v1/${date.toISOString().split('T')[0]}.json`, {
         headers: {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/[IP_ADDRESS] Safari/537.36'

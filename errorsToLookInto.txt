@@ -1,3 +1,19 @@
+Code error?
+In explainer.js, after adjusting conditions, the combinations of any adjusted areas should be checked again.
+
+Refactor:
+make foundDominoes a set and not a list.
+stop using directions and start using displacements (everywhere)
+make the satisfyconditions and then check thing (to check a domino placement at a cell in some particular direction) be a function that's reused.
+
+
+Oct. 15, 2026 Hard:
+[4,6] domino should go into the >14 region. You need something that is at least 9 to go in there, and this is the only domino.
+(it thinks that [4, 4] is acceptable, because both of those are not unused dominoes)
+
+Oct. 12, 2026 Hard:
+It's slow... maybe don't use this structure thing unless it's necessary?
+
 Oct. 10, 2026 Medium:
 It guesses [2, 1] up from the <3 square first. Ok, but then it should immediately get the one from the equals instead of guessing again.
 
@@ -17,8 +33,3 @@ Imporvement:
 Oct 5. Hard
 can deduce the 
 
-Code error?
-In explainer.js, after adjusting conditions, the combinations of any adjusted areas should be checked again.
-
-Refactor:
-make foundDominoes a set and not a list.
