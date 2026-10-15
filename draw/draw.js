@@ -372,6 +372,12 @@ document.addEventListener('keydown', (e) => {
     }
 })
 
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown') {
+        nextForWrongPath.click();
+    }
+})
+
 import { lastSinglePlacementCells } from "./clickNext.js";
 
 export const draw = () => {

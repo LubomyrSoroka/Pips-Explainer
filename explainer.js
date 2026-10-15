@@ -199,7 +199,7 @@ export const solve = async () => {
     let cellCoordinatesToIgnore = new Set();
     let updatedStructureOnce = false;
 
-    const updateStructure = () => {
+    const updateStructure = (silenced = false) => {
         // find all placements which can only take one value.
         // put a fake domino there and repeat this process until you can't find any more guaranteed placemnets or have no more dominoes to fill on the board.
 
@@ -288,8 +288,8 @@ export const solve = async () => {
                 validIndices.delete(`${otherIndex[0]},${otherIndex[1]}`);
                 const originalValidCellsToDirections = new Map(validCellsToDirections);
                 const originalCellCoordinatesToIgnore = new Set(cellCoordinatesToIgnore);
-                const originalSinglePossibilityCellsKeys = new Set(Array.from(validCellsToDirections.entries()).filter(([cell, directions]) => directions.length === 1).map(([cell, directions]) => cell));
                 const originalOneDirectionFromDominoEliminationCells = new Set(oneDirectionFromDominoEliminationCells);
+                const originalSinglePossibilityCellsKeys = new Set(Array.from(validCellsToDirections.entries()).filter(([cell, directions]) => directions.length === 1).map(([cell, directions]) => cell));
                 validCellsToDirections.set(`${i},${j}`, [direction])
                 validCellsToDirections.delete(`${otherIndex[0]},${otherIndex[1]}`);
                 cellCoordinatesToIgnore.add(`${otherIndex[0]},${otherIndex[1]}`);
@@ -313,7 +313,7 @@ export const solve = async () => {
                 cellCoordinatesToIgnore.add(otherIndex.join(','));
                 validIndices.delete(`${otherIndex[0]},${otherIndex[1]}`);
             }
-            if (singlePossibilityCellsInCommon && singlePossibilityCellsInCommon.size > 0) {
+            if (singlePossibilityCellsInCommon && singlePossibilityCellsInCommon.size > 0 && !silenced) {
                 finalSolution.push({ dominoEntry: null, reasoning: `Altered structure due to all directions implying same structure at cell ${i},${j}`, singlePlacementCells: Array.from(singlePossibilityCellsInCommon.entries()), additionalCellsThatGiveStructure: [i, j], oneDirectionFromDominoEliminationCells })
             }
         }
@@ -468,6 +468,8 @@ export const solve = async () => {
         const originalConditionsPointer = indicesToRegion;
         const originalRegionsPointer = regions;
         const originalValidCellsToDirections = structuredClone(validCellsToDirections);
+        const originalCellCoordinatesToIgnore = new Set(cellCoordinatesToIgnore);
+        const originalOneDirectionFromDominoEliminationCells = new Set(oneDirectionFromDominoEliminationCells);
         let lastAddedToFinalSolution = [];
 
         class TreeNode {
@@ -519,7 +521,13 @@ export const solve = async () => {
                 currentNode = currentNode.parent;
                 ++depth;
             } while (currentNode);
-            updateStructure();
+
+
+            // is this necessary?
+            validCellsToDirections = structuredClone(originalValidCellsToDirections);
+            cellCoordinatesToIgnore = new Set(originalCellCoordinatesToIgnore);
+            oneDirectionFromDominoEliminationCells = new Set(originalOneDirectionFromDominoEliminationCells);
+            updateStructure(true);
 
             // often, this just adds the same thing to both sides of the tree (since either placement results in the same next placement with min possiblities)
             // I think I could optimize this...
