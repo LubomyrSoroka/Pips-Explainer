@@ -6,7 +6,6 @@ import { invalidRoots, finalSolution } from "../explainer.js"
 import { putDominoOnBoard, removeDomino } from './putDominoOnBoard.js';
 
 let lastHighlightedCurrent = null;
-export let lastSinglePlacementCells = new Map();
 let currentIndex = -1;
 
 
@@ -14,10 +13,19 @@ export const resetCurrentIndex = () => {
     currentIndex = -1;
 }
 
+export let lastSinglePlacementCells = new Map();
+
+let highlightedCell = null;
+const highlightedCellsFromElimination = [];
 
 export const clickNext = async (direction) => {
     nextButton.removeEventListener('click', clickForward);
     backButton.removeEventListener('click', clickBackward);
+
+    if (highlightedCell)
+        unhighlightCell(highlightedCell);
+    for (const cell of highlightedCellsFromElimination)
+        unhighlightCell(cell);
 
     currentIndex += direction;
     const { dominoEntry = undefined, reasoning = undefined, singlePlacementCells = new Map(), additionalCellsThatGiveStructure = undefined, oneDirectionFromDominoEliminationCells = new Set() } = finalSolution[currentIndex !== -1 ? currentIndex : 0];
@@ -41,26 +49,21 @@ export const clickNext = async (direction) => {
 
 
     if (singlePlacementCells && singlePlacementCells.length > 0 && (lastSinglePlacementCells.size === 0 || singlePlacementCells.some(([cell, direction]) => !lastSinglePlacementCells.has(cell)))) {
-        let highlightedCell = null;
         if (additionalCellsThatGiveStructure)
             highlightedCell = highlightCell(additionalCellsThatGiveStructure, null, 'orange');
-        const highlightedCellsFromElimination = [];
         for (const cell of oneDirectionFromDominoEliminationCells)
             highlightedCellsFromElimination.push(highlightCell(cell.split(',').map(Number), null, 'purple'));
         drawStructure(singlePlacementCells);
-        if (!dominoEntry)
-            await waitForNextClick(nextButton);
-        if (highlightedCell)
-            unhighlightCell(highlightedCell);
-        for (const cell of highlightedCellsFromElimination)
-            unhighlightCell(cell);
+
+        // if (!dominoEntry)
+        //     await waitForNextClick(nextButton);
+        for (const [cell, entry] of singlePlacementCells) {
+            lastSinglePlacementCells.set(cell, entry);
+        }
     }
 
-    for (const [cell, entry] of singlePlacementCells) {
-        lastSinglePlacementCells.set(cell, entry);
-    }
 
-    if (dominoEntry === null) {
+    if (!dominoEntry) {
         nextButton.addEventListener('click', clickForward);
         backButton.addEventListener('click', clickBackward);
         return;
