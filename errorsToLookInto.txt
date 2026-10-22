@@ -2,9 +2,10 @@ Code error?
 In explainer.js, after adjusting conditions, the combinations of any adjusted areas should be checked again.
 
 Refactor:
-make foundDominoes a set and not a list.
-stop using directions and start using displacements (everywhere)
-make the satisfyconditions and then check thing (to check a domino placement at a cell in some particular direction) be a function that's reused.
+- make foundDominoes a set and not a list.
+- stop using directions and start using displacements (everywhere)
+- make the satisfyconditions and then check thing (to check a domino placement at a cell in some particular direction) be a function that's reused. (Would this be hard to do?)
+- Add an add domino function which modifies the validCells, and the current conditions and regions pointers.
 
 Oct. 18, 2026 Hard:
 It breaks after doing the "all directions implying same structure" thing (also, it isn't really that necessary here; there is a much simpler way of getting the structure)

@@ -1,24 +1,27 @@
-import { dominoes, validCellsToDirections, check, adjustConditions, satisfiesRegionConditions, copyIndicesAndRegions, resetIndicesAndRegions, foundDominoes, finalSolution } from "./explainer.js"
+import { dominoes, updateStructure, validIndices, validCellsToDirections, check, adjustConditions, satisfiesRegionConditions, copyIndicesAndRegions, resetIndicesAndRegions, foundDominoes, finalSolution, getOtherIndex, isOutOfBoundsOrFilled } from "./explainer.js"
 
-const dominoToPlacements = [];
 
 export const rule_canOnlyBePlacedInOneArea = (originalConditionsPointer, originalRegionsPointer, silenced) => {
 
+    const dominoToPlacements = [];
     // const originalConditionsPointer = indicesToRegion;
     // const originalRegionsPointer = regions;
 
     const foundPlacements = [];
+    const foundAreasAndDominoes = [];
     for (const domino of dominoes) {
-        if (foundDominoes.includes(domino))
+        if (foundDominoes.some(foundDomino => foundDomino[0] === domino[0] && foundDomino[1] === domino[1]))
             continue;
         for (const flip of [0, 1]) {
             // consider the domino in each orientation in each cell. Many times, one of the ends will be out of bounds (can obviously disqualify that)
             for (const [i, j] of Array.from(validCellsToDirections.keys()).map(key => key.split(',').map(Number))) {
+                if (isOutOfBoundsOrFilled(i, j))
+                    continue;
                 copyIndicesAndRegions(originalConditionsPointer, originalRegionsPointer);
                 if (!satisfiesRegionConditions(i, j, flip ? domino[1] : domino[0]))
                     continue;
-
                 adjustConditions([{ cell: [i, j], value: domino[flip ? 1 : 0] }]);
+
                 for (const direction of validCellsToDirections.get(`${i},${j}`)) {
                     let result = check(i, j, domino, direction, flip === 1);
                     if (result) {
@@ -37,9 +40,11 @@ export const rule_canOnlyBePlacedInOneArea = (originalConditionsPointer, origina
 
         // for an example of where this rule can be applied, consider Oct. 18, 2026 Easy. [4, 3] must go in the bottom with the 3 in the nine region.
         if (placements.length === 0) {
+            return { type: INVALID_ARRANGEMENT, reason: `The domino ${domino} cannot be placed in any region` };
 
         }
         else if (placements.length === 1) {
+            resetIndicesAndRegions(originalConditionsPointer, originalRegionsPointer);
             // place the domino at its only location.
             const dominoEntry = {
                 cell: placements[0].region,
@@ -47,11 +52,22 @@ export const rule_canOnlyBePlacedInOneArea = (originalConditionsPointer, origina
                 domino: JSON.parse(domino),
                 direction: placements[0].direction,
             }
+
+            let otherIndices = getOtherIndex(placements[0].region, placements[0].direction);
+            let [index1, index2] = placements[0].flipped ? [1, 0] : [0, 1];
+            adjustConditions([{ cell: placements[0].region, value: JSON.parse(domino)[index1] }, { cell: otherIndices, value: JSON.parse(domino)[index2] }]);
+            // this value is used for checking if something is out of bounds.
+            // but it is also used to check if a domino collides with another one.
+            validIndices.delete(`${placements[0].region[0]},${placements[0].region[1]}`);
+            validIndices.delete(`${otherIndices[0]},${otherIndices[1]}`);
+
+            updateStructure();
             const placement = { dominoEntry, reasoning: `Added through rule_canOnlyBePlacedInOneArea` }
-            if(!silenced){
+            if (!silenced) {
                 finalSolution.push(placement);
             }
             foundPlacements.push(placement);
+            foundAreasAndDominoes.push(dominoEntry);
             foundDominoes.push(JSON.parse(domino));
         }
         // imagine this scenario: one cell region has exactly two placements (including flips) and another region has the exact same two placements.
@@ -102,6 +118,6 @@ export const rule_canOnlyBePlacedInOneArea = (originalConditionsPointer, origina
     resetIndicesAndRegions(originalConditionsPointer, originalRegionsPointer)
     //copyIndicesAndRegions(originalConditionsPointer, originalRegionsPointer);
 
-    return {foundPlacements};
+    return { foundPlacements: foundAreasAndDominoes };
 }
 

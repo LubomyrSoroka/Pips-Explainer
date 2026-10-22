@@ -47,6 +47,7 @@ export const resetIndicesAndRegions = (originalConditionsPointer, originalRegion
     indicesToRegion = originalConditionsPointer;
     regions = originalRegionsPointer;
 }
+
 export const adjustConditions = (modifications) => {
     for (const modification of modifications) {
         const modificationCellKey = `${modification.cell[0]},${modification.cell[1]}`;
@@ -129,26 +130,26 @@ export const adjustConditions = (modifications) => {
 export const check = (row, col, domino, direction, flip) => {
     const dominoValue = flip ? domino[0] : domino[1];
     if (direction === DOWN) {
-        if (isOutOfBounds(row + 1, col)) {
+        if (isOutOfBoundsOrFilled(row + 1, col)) {
             return OUT_OF_BOUNDS;
         }
         // if domino[0] doesn't satisfy these conditions, then return invalid;
         return satisfiesRegionConditions(row + 1, col, dominoValue);
     }
     else if (direction === UP) {
-        if (isOutOfBounds(row - 1, col)) {
+        if (isOutOfBoundsOrFilled(row - 1, col)) {
             return OUT_OF_BOUNDS;
         }
         return satisfiesRegionConditions(row - 1, col, dominoValue);
     }
     else if (direction === LEFT) {
-        if (isOutOfBounds(row, col - 1)) {
+        if (isOutOfBoundsOrFilled(row, col - 1)) {
             return OUT_OF_BOUNDS;
         }
         return satisfiesRegionConditions(row, col - 1, dominoValue);
     }
     else if (direction === RIGHT) {
-        if (isOutOfBounds(row, col + 1)) {
+        if (isOutOfBoundsOrFilled(row, col + 1)) {
             return OUT_OF_BOUNDS;
         }
         return satisfiesRegionConditions(row, col + 1, dominoValue);
@@ -321,7 +322,7 @@ const checkRequiresDouble = () => {
 
 
 const OUT_OF_BOUNDS = 'Out of bounds'
-const INVALID_ARRANGEMENT = 'Invalid arrangement'
+export const INVALID_ARRANGEMENT = 'Invalid arrangement'
 
 const EASY = 'easy';
 const MEDIUM = 'medium';
@@ -335,8 +336,9 @@ const canPlaceDomino = () => {
 // map from each cell to the directions that this cell can take
 let cellCoordinatesToIgnore = new Set();
 let updatedStructureOnce = false;
+let willBePlaced = new Set();
 
-const updateStructure = (silenced = false) => {
+export const updateStructure = (silenced = false) => {
     // find all placements which can only take one value.
     // put a fake domino there and repeat this process until you can't find any more guaranteed placemnets or have no more dominoes to fill on the board.
 
@@ -363,7 +365,8 @@ const updateStructure = (silenced = false) => {
 
                 for (const [direction, deltaRow, deltaCol] of additions) {
                     otherIndex = [i + deltaRow, j + deltaCol];
-                    if (isOutOfBounds(i + deltaRow, j + deltaCol))
+                    if (isOutOfBoundsOrFilled(i + deltaRow, j + deltaCol) || willBePlaced.has(`${i + deltaRow},${j + deltaCol}`))
+                        //if (isOutOfBoundsOrFilled(i + deltaRow, j + deltaCol))
                         continue;
                     let hasValid = false;
 
@@ -372,9 +375,9 @@ const updateStructure = (silenced = false) => {
                             continue;
                         //------------------------------------------------------------------------------------------------------------------------------------------------------
                         for (const flip of [0, 1]) {
+                            ({ indicesToRegion, regions } = structuredClone({ indicesToRegion: originalConditionsPointer, regions: originalRegionsPointer }));
                             if (!satisfiesRegionConditions(i, j, flip ? domino[1] : domino[0]))
                                 continue;
-                            ({ indicesToRegion, regions } = structuredClone({ indicesToRegion: originalConditionsPointer, regions: originalRegionsPointer }));
                             adjustConditions([{ cell: [i, j], value: domino[flip ? 1 : 0] }]);
                             hasValid = check(i, j, domino, direction, flip);
                             indicesToRegion = originalConditionsPointer;
@@ -397,12 +400,17 @@ const updateStructure = (silenced = false) => {
                 if (validDirections.length === 1) {
                     validIndices.delete(`${i},${j}`)
                     validIndices.delete(`${validOtherIndex[0]},${validOtherIndex[1]}`)
+                    willBePlaced.add(`${i},${j}`);
+                    willBePlaced.add(`${validOtherIndex[0]},${validOtherIndex[1]}`);
                     validCellsToDirections.delete(`${validOtherIndex[0]},${validOtherIndex[1]}`)
                     hasOneDirectionCell = true;
                     cellCoordinatesToIgnore.add(`${validOtherIndex[0]},${validOtherIndex[1]}`);
                     if (hasInvalidatedDirectionFromDominoes) {
                         oneDirectionFromDominoEliminationCells.add(`${i},${j}`)
                     }
+                }
+                else if (validDirections.length === 0) {
+                    return INVALID_ARRANGEMENT;
                 }
                 validCellsToDirections.set(`${i},${j}`, validDirections);
             }
@@ -415,13 +423,13 @@ const updateStructure = (silenced = false) => {
     //finalSolution.push({ dominoEntry: null, reasoning: null, singlePlacementCells, additionalCellsThatGiveStructure: null, oneDirectionFromDominoEliminationCells })
 
     updatedStructureOnce = false;
-    for (const [i, j] of Array.from(validCellsToDirections.keys()).map(indices => indices.split(',').map(Number))) {
+    nextCellForCellsInCommon: for (const [i, j] of Array.from(validCellsToDirections.keys()).map(indices => indices.split(',').map(Number))) {
         const directions = validCellsToDirections.get(`${i},${j}`);
         if (!directions || directions.length === 1)
             continue;
         let singlePossibilityCellsInCommon = null;
         const originalValidIndices = new Set(validIndices);
-        for (const direction of directions) {
+        directionLoop: for (const direction of directions) {
             validIndices.delete(`${i},${j}`);
             const otherIndex = getOtherIndex([i, j], direction);
             validIndices.delete(`${otherIndex[0]},${otherIndex[1]}`);
@@ -429,20 +437,28 @@ const updateStructure = (silenced = false) => {
             const originalCellCoordinatesToIgnore = new Set(cellCoordinatesToIgnore);
             const originalOneDirectionFromDominoEliminationCells = new Set(oneDirectionFromDominoEliminationCells);
             const originalSinglePossibilityCellsKeys = new Set(Array.from(validCellsToDirections.entries()).filter(([cell, directions]) => directions.length === 1).map(([cell, directions]) => cell));
+            const originalWillBePlaced = new Set(willBePlaced);
             validCellsToDirections.set(`${i},${j}`, [direction])
             validCellsToDirections.delete(`${otherIndex[0]},${otherIndex[1]}`);
             cellCoordinatesToIgnore.add(`${otherIndex[0]},${otherIndex[1]}`);
-            func();
+            const result = func();
+            willBePlaced = originalWillBePlaced;
             oneDirectionFromDominoEliminationCells = originalOneDirectionFromDominoEliminationCells;
+            validIndices = new Set(originalValidIndices);
+            validCellsToDirections = originalValidCellsToDirections;
+            cellCoordinatesToIgnore = originalCellCoordinatesToIgnore;
+            if (result === INVALID_ARRANGEMENT) {
+                continue directionLoop;
+            }
             const newSinglePossibilityCells = new Map(Array.from(validCellsToDirections.entries()).filter(([cell, directions]) => directions.length === 1 && !originalSinglePossibilityCellsKeys.has(cell)));
             if (!singlePossibilityCellsInCommon) {
                 singlePossibilityCellsInCommon = newSinglePossibilityCells;
             } else {
                 singlePossibilityCellsInCommon = new Map(Array.from(newSinglePossibilityCells.entries()).filter(([cell, directions]) => singlePossibilityCellsInCommon.has(cell) && JSON.stringify(singlePossibilityCellsInCommon.get(cell)) === JSON.stringify(directions)));
+                if (singlePossibilityCellsInCommon.size === 0) {
+                    continue nextCellForCellsInCommon;
+                }
             }
-            validIndices = new Set(originalValidIndices);
-            validCellsToDirections = originalValidCellsToDirections;
-            cellCoordinatesToIgnore = originalCellCoordinatesToIgnore;
         }
         for (const [cell, directions] of singlePossibilityCellsInCommon ?? []) {
             validCellsToDirections.set(cell, directions);
@@ -457,9 +473,9 @@ const updateStructure = (silenced = false) => {
         }
     }
 
+    // valid indices represents the cells that are not filled in and not out of bounds.
     validIndices = originalValidIndices;
     updatedStructureOnce = true;
-    //validIndices = new Set(originalValidIndices);
 }
 
 
@@ -477,7 +493,7 @@ const rule_canOnlyBePlacedByOneDomino = (dominoes, silenced = false) => {
 
     nextCell: for (const [i, j] of Array.from(validCellsToDirections.keys()).map(key => key.split(',').map(Number))) {
         // this should check that you aren't placing the domino on a cell that already has a domino on it (not really checking that you're placing something out of bounds) 
-        if (!validCellsToDirections.get(`${i},${j}`) || isOutOfBounds(i, j))
+        if (!validCellsToDirections.get(`${i},${j}`) || isOutOfBoundsOrFilled(i, j))
             continue;
 
         let validCount = 0;
@@ -489,7 +505,9 @@ const rule_canOnlyBePlacedByOneDomino = (dominoes, silenced = false) => {
 
         outerLoop: for (const domino of dominoes) {
             // this doesn't account for the case where you have the same domino twice (rare)
-            if (foundDominoes.includes(domino))
+
+            // this should use a set with strings instead.
+            if (foundDominoes.some(foundDomino => foundDomino[0] === domino[0] && foundDomino[1] === domino[1]))
                 continue;
             let flipCount = 2;
             if (domino[0] === domino[1])
@@ -662,7 +680,10 @@ const lookAhead = (leastOptionsPlacement) => {
         validCellsToDirections = structuredClone(originalValidCellsToDirections);
         cellCoordinatesToIgnore = new Set(originalCellCoordinatesToIgnore);
         oneDirectionFromDominoEliminationCells = new Set(originalOneDirectionFromDominoEliminationCells);
+
+        const originalWillBePlaced = new Set(willBePlaced);
         updateStructure(true);
+        willBePlaced = originalWillBePlaced;
 
         // often, this just adds the same thing to both sides of the tree (since either placement results in the same next placement with min possiblities)
         // I think I could optimize this...
@@ -726,8 +747,14 @@ const lookAhead = (leastOptionsPlacement) => {
                 cellsToDirections.push(structuredClone(validCellsToDirections));
                 //dominoPartCountHistory.push({ ...dominoPartCounts });
 
+
                 foundDominoes.push(validOption.domino);
                 const otherIndices = getOtherIndex(validOption.cell, validOption.direction);
+
+                // is this necessary?
+                // validCellsToDirections.set(dominoEntry.cell.join(','), [dominoEntry.direction]);
+                // validCellsToDirections.delete(otherIndices.join(','));
+
                 const validOptionAreaString = `${validOption.cell[0]},${validOption.cell[1]}`;
                 validIndices.delete(validOptionAreaString);
                 validIndices.delete(`${otherIndices[0]},${otherIndices[1]}`);
@@ -909,7 +936,7 @@ const updateEqualsRegions = () => {
 
 
 
-const isOutOfBounds = (row, col) => {
+export const isOutOfBoundsOrFilled = (row, col) => {
     return !validIndices.has(`${row},${col}`);
 }
 
@@ -951,34 +978,37 @@ const runUntilNoDefinitePlacements = (silenced) => {
     //     if (onlyOneDominoResult?.type !== INVALID_ARRANGEMENT && onlyOneDominoResult.foundPlacements.length > 0) {
     //         allFoundPlacements.push(...onlyOneDominoResult.foundPlacements);
     //     }
-
     // } while (result?.type !== INVALID_ARRANGEMENT && result.foundPlacements.length > 0 && canPlaceDomino());
 
     let result = null;
     const allFoundPlacements = [];
     do {
         result = rule_canOnlyBePlacedByOneDomino(dominoes, silenced);
-        if (result?.type !== INVALID_ARRANGEMENT)
-            allFoundPlacements.push(...result.foundPlacements);
-        const oneAreaResult = rule_canOnlyBePlacedInOneArea(indicesToRegion, regions, silenced);
-        if (oneAreaResult?.type !== INVALID_ARRANGEMENT){
-            result.foundPlacements.push(...oneAreaResult.foundPlacements);
-
-            let index = 0;
-            for(const possiblePlacement of result.possiblePlacements)
-                // if(foundDominoes.some(foundDomino => possiblePlacement.domino[0] === foundDomino[0] && possiblePlacement.domino[1] === foundDomino[1]))
-                //     result.possiblePlacements.splice(index);
-                // else
-                //     ++index;
-                if(oneAreaResult.foundPlacements.some(foundPlacement => foundPlacement.dominoEntry.cell[0] === possiblePlacement.cell[0] && foundPlacement.dominoEntry.cell[l] === possiblePlacement.cell[1] ))
-                    result.possiblePlacements.splice(index);
-                else
-                    ++index;
-        }
-        else
+        if (result?.type === INVALID_ARRANGEMENT)
             break;
+        const oneAreaResult = rule_canOnlyBePlacedInOneArea(indicesToRegion, regions, silenced);
+        if (oneAreaResult?.type === INVALID_ARRANGEMENT) {
+            result.type = INVALID_ARRANGEMENT;
+            break;
+        }
+
+        result.foundPlacements.push(...oneAreaResult.foundPlacements);
+
+        // let index = 0;
+        // for (const possiblePlacement of result.possiblePlacements) {
+        //     // if(foundDominoes.some(foundDomino => possiblePlacement.domino[0] === foundDomino[0] && possiblePlacement.domino[1] === foundDomino[1]))
+        //     //     result.possiblePlacements.splice(index);
+        //     // else
+        //     //     ++index;
+        //     if (oneAreaResult.foundPlacements.some(foundPlacement => foundPlacement.dominoEntry.cell[0] === possiblePlacement.cell[0] && foundPlacement.dominoEntry.cell[1] === possiblePlacement.cell[1]))
+        //         result.possiblePlacements.splice(index);
+        //     else
+        //         ++index;
+        // }
         // if all the possible placements were deleted, then is that case considered?
-    } while (result?.type !== INVALID_ARRANGEMENT && result.foundPlacements.length > 0 && canPlaceDomino());
+        allFoundPlacements.push(...result.foundPlacements);
+
+    } while (result.foundPlacements.length > 0 && canPlaceDomino());
 
     allFoundPlacements.push(...(result.lastPlacements || []));
 
