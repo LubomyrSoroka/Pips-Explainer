@@ -128,6 +128,7 @@ export const adjustConditions = (modifications) => {
         }
     }
 }
+
 export const check = (row, col, domino, direction, flip) => {
     const dominoValue = flip ? domino[0] : domino[1];
     if (direction === DOWN) {
@@ -482,11 +483,40 @@ export const updateStructure = (silenced = false) => {
             finalSolution.push({ dominoEntry: undefined, reasoning: `Altered structure due to all directions implying same structure at cell ${i},${j}`, singlePlacementCells: Array.from(singlePossibilityCellsInCommon.entries()), additionalCellsThatGiveStructure: [i, j], oneDirectionFromDominoEliminationCells })
         }
     }
-
+    getNoRepeatDirections();
     // valid indices represents the cells that are not filled in and not out of bounds.
     validIndices = originalValidIndices;
 }
 
+
+export let noRepeatPossibleDominoPlacements = null;
+
+const oppositeDirection = (direction) => {
+    switch (direction) {
+        case DOWN:
+            return UP;
+        case UP:
+            return DOWN;
+        case RIGHT:
+            return LEFT;
+        case LEFT:
+            return RIGHT;
+    }
+}
+const getNoRepeatDirections = () => {
+    noRepeatPossibleDominoPlacements = structuredClone(validCellsToDirections);
+    for (const [cell, directions] of Array.from(noRepeatPossibleDominoPlacements.entries())) {
+        for (const direction of directions) {
+            const otherIndex = getOtherIndex(cell.split(',').map(Number), direction);
+            const otherDirections = noRepeatPossibleDominoPlacements.get(otherIndex.join(','))
+            if (otherDirections) {
+                otherDirections.splice(otherDirections.indexOf(oppositeDirection(direction)), 1);
+                if (otherDirections.length === 0)
+                    noRepeatPossibleDominoPlacements.delete(otherIndex.join(','));
+            }
+        }
+    }
+}
 
 const reasoningOnlyOneDomino = "Added domino in this position through rule_canOnlyBePlacedByOneDomino";
 export let foundDominoes = [];
@@ -828,9 +858,10 @@ const lookAhead = (leastOptionsPlacement) => {
 }
 
 
-const alterOneCombinationRegion = (combinations) => {
+export const alterOneCombinationRegion = (combinations, regionIndices) => {
     let onlyValue = -1;
     const firstCombo = JSON.parse(combinations.values().next().value);
+    let numberOfNonZeroEntries = 0;
     for (const key of Object.keys(firstCombo).map(Number)) {
         if (firstCombo[key] > 0) {
             ++numberOfNonZeroEntries;
@@ -840,7 +871,7 @@ const alterOneCombinationRegion = (combinations) => {
             break;
     }
     if (numberOfNonZeroEntries === 1) {
-        for (const index of entry.indices) {
+        for (const index of regionIndices) {
             const indexKey = `${index[0]},${index[1]}`;
             indicesToRegion[indexKey] = { type: 'sum', target: onlyValue, numberOfCells: 1, indices: [index] }
             regions.push(indicesToRegion[indexKey]);
@@ -891,6 +922,7 @@ const updateRegionsAndDominoPartCounts = () => {
                 const { totalCombinations: combinations, minNumberOfPipsUsed, unusedPipsValues } = getCombinations(entry.target, entry.indices.length, entry.type);
                 entry.combinations = combinations;
                 entry.unusedPipsValues = unusedPipsValues;
+                entry.minNumberOfPipsUsed = minNumberOfPipsUsed;
                 let numberOfNonZeroEntries = 0;
                 if (combinations.size === 0) {
                     return { type: INVALID_ARRANGEMENT, reason: `For the ${JSON.stringify(entry.indices)} region, there are no combinations of pips values that ${entry.type === 'sum' ? 'sum to' : entry.type === 'greater' ? 'are greater than' : 'are less than'} ${entry.target}.` }
@@ -941,7 +973,7 @@ const updateRegionsAndDominoPartCounts = () => {
             return { type: INVALID_ARRANGEMENT, reason: `One of the domino part counts is below 0: ${JSON.stringify(dominoPartCounts)}` };
     }
 
-    //removeCombinations()
+    removeCombinations()
 
 }
 

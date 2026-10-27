@@ -5,16 +5,18 @@ Refactor:
 
 - make foundDominoes a set and not a list.
 - stop using directions and start using displacements (everywhere)
+    - Make the list of direction a set instead of a list though so that you can remove them more easily in noRepeatDirection in canOnlyBePlacedByOneArea.
 - make the satisfyconditions and then check thing (to check a domino placement at a cell in some particular direction) be a function that's reused. (Would this be hard to do?)
 - Add an add domino function which modifies the validCells, and the current conditions and regions pointers.
 
+Features:
+Do AC3? but for the combinations found for each region. E.g, if a 9 region in two cells has {3, 6} and {4, 5} and a 10 region in two cells ONLY has {4, 6}. Then you can remove {3, 6}
+from the 9 region because that one would make the combination at 10 impossible.
 
+Errors: 
 
-Oct. 10, 2026 Medium:
-It guesses [2, 1] up from the <3 square first. Ok, but then it should immediately get the one from the equals instead of guessing again.
-
-Oct. 10, 2026 Easy:
-After it places the first two pieces down, it won't place down anymore.
+Oct. 22, 2026 Hard:
+It can't solve
 
 Oct. 4, 2026 Medium:
 " For the [[2,1],[2,2]] region, there is no combinations of pips values that sum to 9."
@@ -37,11 +39,9 @@ So when looking at all areas and the dominoes that go there, you can remove this
 Similarly, when looking at all dominoes at a particular cell, then if that cell can only fit one domino (even if it's multiple directions), then it cannot go to any other cell.
 So when looking at all the dominoes and the places they can go, you can remove this area from those which were initially identified.
 
-Oct. 12, 2026 Hard:
-Doesn't detect that the [6,3] domino has only one area it can go.
+(But you can actually solve it without using this rule or any lookahead...)
 
-To fix this: Do AC3? but for the combinations found for each region. E.g, if a 9 region in two cells has {3, 6} and {4, 5} and a 10 region in two cells ONLY has {4, 6}. Then you can remove {3, 6}
-from the 9 region because that one would make the combination at 10 impossible.
+Oct. 12, 2026 Hard:
 
 It's slow... maybe don't use this structure thing unless it's necessary?
 
@@ -53,9 +53,11 @@ Can deduce the placmeent of the [3,4] domino. Both the 6,6 and the 2,2 only allo
 So the new rule you could make is if all posibilities from a cell imply a certain placement, then you can put that placement down before you're done searching through everything.
 
 
-
-
 Resolved:
+
+Oct. 12, 2026 Hard:
+Doesn't detect that the [6,3] domino has only one area it can go.
+(fixed bug with the oneArea rule and getting the combinations now )
 
 October 26, 2026 Hard:
 the placement of the [4,0] domino is wrong. The structure is not possible.

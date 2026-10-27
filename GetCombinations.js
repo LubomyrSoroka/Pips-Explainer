@@ -45,7 +45,10 @@
 
 //console.log(JSON.stringify(getCombinations(18, 4), null, 2));
 
-import { dominoPartCounts, regions } from "./explainer.js";
+import {
+    dominoPartCounts, regions, alterOneCombinationRegion,
+    validCellsToDirections
+} from "./explainer.js";
 
 
 const SUM = 'sum';
@@ -115,6 +118,7 @@ export const getCombinations = (target, numberOfCells, type = SUM) => {
             ++numberOfSummands;
         }
 
+
         for (const combination of combinations) {
             let combinationObject = JSON.parse(combination);
             // if this is an invalid combination or we don't have enough of a certain value, then disqualify this.
@@ -135,9 +139,8 @@ export const getCombinations = (target, numberOfCells, type = SUM) => {
 }
 
 
-
 // assumes previous valid combinations and the new pip value that you added.
-export const updateCombinations = (previousCombinations, addedValue) => {
+export const updateCombinations = (previousCombinations, addedValue, oldMinPipCounts = null) => {
     if (!previousCombinations)
         return;
     let newCombinations = new Set();
@@ -152,12 +155,38 @@ export const updateCombinations = (previousCombinations, addedValue) => {
         }
     }
 
+    // const minPipCounts = {}
+    // for (let i = 0; i <= 6; ++i)
+    //     minPipCounts[i] = Infinity;
+
+    // for (const combination of newCombinations) {
+    //     let combinationObject = JSON.parse(combination);
+    //     unusedPipsValues = unusedPipsValues.difference(new Set(Object.keys(combinationObject).map(Number)));
+    //     for (let i = 0; i <= 6; ++i)
+    //         minPipCounts[i] = Math.min(minPipCounts[i], combinationObject[i] ?? 0);
+    // }
+
+    // let modifiedDominoPartCounts = false;
+    // for (let i = 0; i <= 6; ++i) {
+    //     const difference = minPipCounts[i] - oldMinPipCounts[i];
+    //     if(difference > 0)
+    //         modifiedDominoPartCounts = true; 
+    //     dominoPartCounts[i] -= difference;
+    // }
+
+
     for (const combination of newCombinations) {
         let combinationObject = JSON.parse(combination);
         unusedPipsValues = unusedPipsValues.difference(new Set(Object.keys(combinationObject).map(Number)));
     }
+
+    // return whether you modified the dominoPartCounts.
+    // after the calling function receives this, should it call removeCombinations right away, or should it way until
+    // you call adjustconditions on the second cell?
+    //return { newCombinations, unusedPipsValues, minPipCounts, modifiedDominoPartCounts };
     return { newCombinations, unusedPipsValues };
 }
+
 
 export const removeCombinations = () => {
     // if using any of the combinations causes you to go over the count for that pip,
@@ -169,9 +198,10 @@ export const removeCombinations = () => {
     while (regionsToCheck.length > 0) {
         const combinationRegion = regionsToCheck.pop();
         const oldMinPipCounts = structuredClone(combinationRegion.minNumberOfPipsUsed);
+        let deleted = false;
         for (const combination of combinationRegion.combinations) {
             const combinationObject = JSON.parse(combination);
-            let deleted = false;
+
             for (const [pipsValue, numberOfPips] of Object.entries(combinationObject)) {
 
                 if (dominoPartCounts[pipsValue] - numberOfPips < 0) {
@@ -179,41 +209,49 @@ export const removeCombinations = () => {
                     deleted = true;
                 }
 
-                if (combinationRegion.combinations.size === 1) {
-                    // checks if the combination is one pip value multiple times. If so, then it adds the 1 cell regions
-                    alterOneCombinationRegion(combinationRegion.combinations);
-                    //const onlyCombo = JSON.parse(combinationRegion.combinations.values().next().value);
-                    // for (const region of combinationRegions) {
-                    //     // should I be comparing the stringifed versions of these?
-                    //     if (region !== combinationRegion)
-                    //         regionsToCheck.add(region);
-                    // }
-                }
-            }
-            if (deleted) {
-                for (let i = 0; i <= 6; ++i) {
-                    combinationRegion.minNumberOfPipsUsed[i] = Infinity;
-                }
-                for (let i = 0; i <= 6; ++i) {
-                    combinationRegion.minNumberOfPipsUsed[i] = Math.min(combinationRegion.minNumberOfPipsUsed[i], combinationObject[i] ?? 0);
-                }
             }
 
+        }
 
+        if (combinationRegion.combinations.size === 1) {
+            // checks if the combination is one pip value multiple times. If so, then it adds the 1 cell regions
+            //alterOneCombinationRegion(combinationRegion.combinations, combinationRegion.indices);
+            //const onlyCombo = JSON.parse(combinationRegion.combinations.values().next().value);
+            // for (const region of combinationRegions) {
+            //     // should I be comparing the stringifed versions of these?
+            //     if (region !== combinationRegion)
+            //         regionsToCheck.add(region);
+            // }
         }
-        // now you need to recount the pip counts with the new minNumberOfPipsUsed.
-        // if the pip counts change, then you need to check the other regions to see if any of them need to have any of their combinations removed.
-        // reset the regions to be all available regions. The end of the loop will remove the current region.
-        let shouldCheckRegionsAgain = false;
-        for (let i = 0; i <= 6; ++i) {
-            const difference = combinationRegion.minNumberOfPipsUsed[i] - oldMinPipCounts[i];
-            if (difference > 0)
-                shouldCheckRegionsAgain = true;
-            dominoPartCounts[i] -= difference;
+
+        if (deleted) {
+            for (let i = 0; i <= 6; ++i) {
+                combinationRegion.minNumberOfPipsUsed[i] = Infinity;
+            }
+            for (const combination of combinationRegion.combinations) {
+                for (let i = 0; i <= 6; ++i)
+                    combinationRegion.minNumberOfPipsUsed[i] = Math.min(combinationRegion.minNumberOfPipsUsed[i], JSON.parse(combination)[i] ?? 0);
+            }
+
+            combinationRegion.unusedPipsValues = new Set([0, 1, 2, 3, 4, 5, 6]);
+            for (const combination of combinationRegion.combinations) {
+                combinationRegion.unusedPipsValues = combinationRegion.unusedPipsValues.difference(new Set(Object.keys(JSON.parse(combination)).map(Number)));
+            }
+
+            // now you need to recount the pip counts with the new minNumberOfPipsUsed.
+            // if the pip counts change, then you need to check the other regions to see if any of them need to have any of their combinations removed.
+            // reset the regions to be all available regions. The end of the loop will remove the current region.
+            let shouldCheckRegionsAgain = false;
+            for (let i = 0; i <= 6; ++i) {
+                const difference = combinationRegion.minNumberOfPipsUsed[i] - oldMinPipCounts[i];
+                if (difference > 0)
+                    shouldCheckRegionsAgain = true;
+                dominoPartCounts[i] -= difference;
+            }
+            if (shouldCheckRegionsAgain)
+                // are you sure !== will work properly here?
+                regionsToCheck = combinationRegions.filter(region => region !== combinationRegion);
         }
-        if (shouldCheckRegionsAgain)
-            // are you sure !== will work properly here?
-            regionsToCheck = combinationRegions.filter(region => region !== combinationRegion);
 
     }
 }
