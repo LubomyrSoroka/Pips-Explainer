@@ -123,7 +123,7 @@ export const getCombinations = (target, numberOfCells, type = SUM) => {
             let combinationObject = JSON.parse(combination);
             // if this is an invalid combination or we don't have enough of a certain value, then disqualify this.
             if (Object.keys(combinationObject).some(value => Number(value) > 6 || combinationObject[value] > dominoPartCounts[value])) {
-                // if (Object.keys(combinationObject).some(value => Number(value) > 6)) {
+                //if (Object.keys(combinationObject).some(value => Number(value) > 6)) {
                 combinations.delete(combination);
                 continue;
             }

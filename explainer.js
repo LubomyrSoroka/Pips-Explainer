@@ -510,9 +510,12 @@ const getNoRepeatDirections = () => {
             const otherIndex = getOtherIndex(cell.split(',').map(Number), direction);
             const otherDirections = noRepeatPossibleDominoPlacements.get(otherIndex.join(','))
             if (otherDirections) {
-                otherDirections.splice(otherDirections.indexOf(oppositeDirection(direction)), 1);
-                if (otherDirections.length === 0)
-                    noRepeatPossibleDominoPlacements.delete(otherIndex.join(','));
+                const index = otherDirections.indexOf(oppositeDirection(direction));
+                if (index !== -1) {
+                    otherDirections.splice(index, 1);
+                    if (otherDirections.length === 0)
+                        noRepeatPossibleDominoPlacements.delete(otherIndex.join(','));
+                }
             }
         }
     }
@@ -610,7 +613,7 @@ const rule_canOnlyBePlacedByOneDomino = (dominoes, silenced = false) => {
             validIndices.delete(`${i},${j}`);
             validIndices.delete(`${otherIndices[0]},${otherIndices[1]}`);
 
-            updateStructure();
+            updateStructure(silenced);
             const dominoEntry = {
                 cell: [i, j],
                 domino: validDomino,
@@ -948,10 +951,11 @@ const updateRegionsAndDominoPartCounts = () => {
                     }
                     // the min pip counts aren't subtracted here but rather when you get to the region within the loop instead.
                 }
-                if (numberOfNonZeroEntries !== 1)
-                    for (const pipsValue of Object.keys(minNumberOfPipsUsed).map(Number)) {
-                        dominoPartCounts[pipsValue] -= minNumberOfPipsUsed[pipsValue];
-                    }
+                // let removeCombinations take care of this?
+                // if (numberOfNonZeroEntries !== 1)
+                //     for (const pipsValue of Object.keys(minNumberOfPipsUsed).map(Number)) {
+                //         dominoPartCounts[pipsValue] -= minNumberOfPipsUsed[pipsValue];
+                //     }
             }
             else if (entry.indices.length === 1 && entry.type === 'sum' && validIndices.has(entry.indices[0].join(','))) {
                 --dominoPartCounts[entry.target];

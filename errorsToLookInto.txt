@@ -13,10 +13,12 @@ Features:
 Do AC3? but for the combinations found for each region. E.g, if a 9 region in two cells has {3, 6} and {4, 5} and a 10 region in two cells ONLY has {4, 6}. Then you can remove {3, 6}
 from the 9 region because that one would make the combination at 10 impossible.
 
-Errors: 
 
-Oct. 22, 2026 Hard:
-It can't solve
+
+Errors/Problems: 
+
+Oct. 28, 2026 Hard:
+How does it figure out the placement of the [3, 1] domino? (see image)
 
 Oct. 4, 2026 Medium:
 " For the [[2,1],[2,2]] region, there is no combinations of pips values that sum to 9."
@@ -55,9 +57,16 @@ So the new rule you could make is if all posibilities from a cell imply a certai
 
 Resolved:
 
+Oct. 22, 2026 Hard: (and on a lot of other puzzles...)
+It can't solve 
+(issue was that the getNoRepeatDirection was deleting from an array using splice and indexOf but it wasn't accounting for the fact 
+that the opposite direction might not even be there.)
+
 Oct. 12, 2026 Hard:
 Doesn't detect that the [6,3] domino has only one area it can go.
 (fixed bug with the oneArea rule and getting the combinations now )
+It broke after creating removeCombinations.
+(Preventing the updateCounts from updating the domino pip counts seems to have fixed this. I'm not sure why though...)
 
 October 26, 2026 Hard:
 the placement of the [4,0] domino is wrong. The structure is not possible.

@@ -14,7 +14,9 @@ export const rule_canOnlyBePlacedInOneArea = (originalConditionsPointer, origina
             continue;
         for (const flip of [0, 1]) {
             // consider the domino in each orientation in each cell. Many times, one of the ends will be out of bounds (can obviously disqualify that)
-            for (const [i, j] of Array.from(noRepeatPossibleDominoPlacements.keys()).map(key => key.split(',').map(Number))) {
+            //for (const [[i, j], directions] of Array.from(noRepeatPossibleDominoPlacements.entries()).map(([key, direction]) => [key.split(',').map(Number), direction])) {
+            for (const [cellString, directions] of noRepeatPossibleDominoPlacements.entries()) {
+                const [i, j] = cellString.split(',').map(Number);
                 if (isOutOfBoundsOrFilled(i, j))
                     continue;
                 copyIndicesAndRegions(originalConditionsPointer, originalRegionsPointer);
@@ -22,7 +24,12 @@ export const rule_canOnlyBePlacedInOneArea = (originalConditionsPointer, origina
                     continue;
                 adjustConditions([{ cell: [i, j], value: domino[flip ? 1 : 0] }]);
 
-                for (const direction of noRepeatPossibleDominoPlacements.get(`${i},${j}`)) {
+                for (const direction of directions) {
+                    const otherIndices = getOtherIndex([i, j], direction)
+                    // if(isOutOfBoundsOrFilled(otherIndices[0], otherIndices[1]))
+                    //     continue;
+
+
                     let result = check(i, j, domino, direction, flip === 1);
                     if (result) {
                         dominoToPlacements[JSON.stringify(domino)] ??= [];
