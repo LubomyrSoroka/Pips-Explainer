@@ -155,6 +155,9 @@ export const updateCombinations = (previousCombinations, addedValue, oldMinPipCo
         }
     }
 
+    // can attempt to modify the dominoPartCounts directly from update.
+    // but then this may require reseting dominoPartCounts when this is called in lookahead.
+
     // const minPipCounts = {}
     // for (let i = 0; i <= 6; ++i)
     //     minPipCounts[i] = Infinity;
@@ -187,6 +190,32 @@ export const updateCombinations = (previousCombinations, addedValue, oldMinPipCo
     return { newCombinations, unusedPipsValues };
 }
 
+const updateDominoPartCounts = (combinationRegion, oldMinPipCounts) => {
+    for (let i = 0; i <= 6; ++i) {
+        combinationRegion.minNumberOfPipsUsed[i] = Infinity;
+    }
+    for (const combination of combinationRegion.combinations) {
+        for (let i = 0; i <= 6; ++i)
+            combinationRegion.minNumberOfPipsUsed[i] = Math.min(combinationRegion.minNumberOfPipsUsed[i], JSON.parse(combination)[i] ?? 0);
+    }
+
+    combinationRegion.unusedPipsValues = new Set([0, 1, 2, 3, 4, 5, 6]);
+    for (const combination of combinationRegion.combinations) {
+        combinationRegion.unusedPipsValues = combinationRegion.unusedPipsValues.difference(new Set(Object.keys(JSON.parse(combination)).map(Number)));
+    }
+    // now you need to recount the pip counts with the new minNumberOfPipsUsed.
+    // if the pip counts change, then you need to check the other regions to see if any of them need to have any of their combinations removed.
+    // reset the regions to be all available regions. The end of the loop will remove the current region.
+    let shouldCheckRegionsAgain = false;
+    for (let i = 0; i <= 6; ++i) {
+        const difference = combinationRegion.minNumberOfPipsUsed[i] - oldMinPipCounts[i];
+        if (difference > 0)
+            shouldCheckRegionsAgain = true;
+        dominoPartCounts[i] -= difference;
+    }
+    return shouldCheckRegionsAgain;
+}
+
 
 export const removeCombinations = () => {
     // if using any of the combinations causes you to go over the count for that pip,
@@ -201,16 +230,13 @@ export const removeCombinations = () => {
         let deleted = false;
         for (const combination of combinationRegion.combinations) {
             const combinationObject = JSON.parse(combination);
-
             for (const [pipsValue, numberOfPips] of Object.entries(combinationObject)) {
-
                 if (dominoPartCounts[pipsValue] - numberOfPips < 0) {
                     combinationRegion.combinations.delete(combination);
                     deleted = true;
+                    break;
                 }
-
             }
-
         }
 
         if (combinationRegion.combinations.size === 1) {
@@ -225,33 +251,81 @@ export const removeCombinations = () => {
         }
 
         if (deleted) {
-            for (let i = 0; i <= 6; ++i) {
-                combinationRegion.minNumberOfPipsUsed[i] = Infinity;
-            }
-            for (const combination of combinationRegion.combinations) {
-                for (let i = 0; i <= 6; ++i)
-                    combinationRegion.minNumberOfPipsUsed[i] = Math.min(combinationRegion.minNumberOfPipsUsed[i], JSON.parse(combination)[i] ?? 0);
-            }
+            const shouldCheckRegionsAgain = updateDominoPartCounts(combinationRegion, oldMinPipCounts);
 
-            combinationRegion.unusedPipsValues = new Set([0, 1, 2, 3, 4, 5, 6]);
-            for (const combination of combinationRegion.combinations) {
-                combinationRegion.unusedPipsValues = combinationRegion.unusedPipsValues.difference(new Set(Object.keys(JSON.parse(combination)).map(Number)));
-            }
 
-            // now you need to recount the pip counts with the new minNumberOfPipsUsed.
-            // if the pip counts change, then you need to check the other regions to see if any of them need to have any of their combinations removed.
-            // reset the regions to be all available regions. The end of the loop will remove the current region.
-            let shouldCheckRegionsAgain = false;
-            for (let i = 0; i <= 6; ++i) {
-                const difference = combinationRegion.minNumberOfPipsUsed[i] - oldMinPipCounts[i];
-                if (difference > 0)
-                    shouldCheckRegionsAgain = true;
-                dominoPartCounts[i] -= difference;
-            }
             if (shouldCheckRegionsAgain)
                 // are you sure !== will work properly here?
                 regionsToCheck = combinationRegions.filter(region => region !== combinationRegion);
         }
-
     }
+
+    //testCombinations();
+}
+
+const testCombinations = () => {
+    // now for all regions that have more than one combination value, attempt to apply one combination (by lowering all the pip counts).
+    // check if this reduction allows for the removal of any other combinations from any other regions.
+    // continue this process. If you get a region with no combinations, then the initial combination can be eliminated.
+    // if all removals of combinations imply the same combination for some region, then you can alter that region.
+    // if all removals lead to the same minPipCount for some region, then...
+
+    const combinationRegions = regions.filter(region => region.combinations);
+    const equalsRegions = regions.filter(region => region.type === 'equals');
+    // equals regions should have their combinations set as their available values * number of cells.
+
+    equalsRegions.forEach(region => {
+        region.combinations = new Set();
+        for (const target of region.target)
+            region.combinations.add(JSON.stringify({ [target]: region.indices.length }));
+    }
+    )
+
+    regionsToCheck = [...combinationRegions, ...equalsRegions];
+
+    while (regionsToCheck.length > 0) {
+        const combinationRegion = regionsToCheck.pop();
+
+        if (combinationRegion.combinations.length > 1) {
+            regionCombinations: for (const combination of combinationRegion.combinations) {
+                const combinationObject = JSON.parse(combination);
+                const oldMinPipCounts = structuredClone(combinationRegion.minNumberOfPipsUsed);
+
+                for (const [pipsValue, numberOfPips] of Object.entries(combinationObject)) {
+                    dominoPartCounts[pipsValue] -= numberOfPips;
+                }
+
+                for (const otherRegion of regionsToCheck) {
+                    if (otherRegion === combinationRegion)
+                        continue;
+
+                    for (const combination of otherRegion.combinations) {
+                        const otherCombinationObject = JSON.parse(combination);
+                        for (const [pipsValue, numberOfPips] of Object.entries(otherCombinationObject)) {
+                            if (dominoPartCounts[pipsValue] - numberOfPips < 0) {
+                                otherRegion.combinations.delete(combination);
+                                break;
+                            }
+                        }
+
+                        if (Object.keys(otherCombinationObject).length === 0) {
+                            combinationRegion.delete(combination);
+                            continue regionCombinations;
+                        }
+                        // need to update pip counts 
+                        // need to go through all the other regions again after checking this.
+                    }
+                }
+                // for (let i = 0; i <= 6; ++i)
+                //     dominoPartCounts[i] = oldDominoPartCounts[i];
+
+                // update the pip counts from the updated regions. Are you sure that this won't double count?
+
+                // the region may be an equals regions. Am I sure that I won't be double counting anything here? 
+                updateDominoPartCounts(region, oldMinPipCounts);
+            }
+        }
+    }
+
+
 }

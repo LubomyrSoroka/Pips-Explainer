@@ -382,7 +382,6 @@ document.addEventListener('keydown', (e) => {
 import { lastSinglePlacementCells } from "./clickNext.js";
 
 export const draw = () => {
-
     const reasoningText = document.querySelector('#reasoning-text');
     if (reasoningText)
         reasoningText.textContent = '';
