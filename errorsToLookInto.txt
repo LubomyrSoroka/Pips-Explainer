@@ -17,6 +17,7 @@ from the 9 region because that one would make the combination at 10 impossible.
 
 Errors/Problems: 
 
+
 Oct. 28, 2026 Hard:
 How does it figure out the placement of the [3, 1] domino? (see image)
 
@@ -32,6 +33,9 @@ There's a very large region with a high sum and this is going to make it extreme
 
 
 Imporvement:
+November 1, 2026 Hard:
+Use the same rule as for Oct. 25, 2026 Hard to place the [0,5] in the (2, 5) coordinates (after you place [3, 2] and [3, 4])
+
 Oct. 25, 2026 Hard:
 You can use these rule to place the [1,5] domino at the coordinates [5, 3].
 
@@ -44,11 +48,7 @@ So when looking at all the dominoes and the places they can go, you can remove t
 (But you can actually solve it without using this rule or any lookahead...)
 
 Oct. 12, 2026 Hard:
-
 It's slow... maybe don't use this structure thing unless it's necessary?
-
-Oct 5, 2026 Hard
-can deduce the 
 
 Oct. 17, 2026 Hard
 Can deduce the placmeent of the [3,4] domino. Both the 6,6 and the 2,2 only allow for putting [2,3] and [6,3] and then [3, 4] is required for the region to sum to 10.
@@ -56,6 +56,16 @@ So the new rule you could make is if all posibilities from a cell imply a certai
 
 
 Resolved:
+Oct. 30, 2026 Medium:
+Can't solve.
+It incorrectly places the [3,3] domino entirely within the equivalence region. The error is the the willBePlaced set
+was not getting reset after calling runRules (which calls updateStructure) and after 
+it adds a new domino since all roots are invalid, updateStructure uses an invalid willBePlaced and believes that [1,2]
+can only point right. WillBePlaced is no longer reset after calling the updateStrucutre before runRules in lookAhead
+(but I'm not sure if this is correct and I can't find when I originally implemented willBePlaced) 
+
+When it tries the [2,2] placement in the image, it places [3, 5] in an "impossible" location. But this is only because the right side has no dominoes
+so it thinks that this placement is the only one. I'm not even sure if this is really an error...
 
 Oct. 22, 2026 Hard: (and on a lot of other puzzles...)
 It can't solve 

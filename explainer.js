@@ -722,12 +722,12 @@ const lookAhead = (leastOptionsPlacement) => {
 
         const originalWillBePlaced = new Set(willBePlaced);
         updateStructure(true);
-        willBePlaced = originalWillBePlaced;
 
         // often, this just adds the same thing to both sides of the tree (since either placement results in the same next placement with min possiblities)
         // I think I could optimize this...
 
         let result = runRules(true) // if any of the rules fail, then this option must not be possible
+        willBePlaced = originalWillBePlaced;
         if (result?.type === INVALID_ARRANGEMENT) {
 
 
