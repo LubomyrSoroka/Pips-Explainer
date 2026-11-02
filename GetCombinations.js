@@ -122,6 +122,8 @@ export const getCombinations = (target, numberOfCells, type = SUM) => {
         for (const combination of combinations) {
             let combinationObject = JSON.parse(combination);
             // if this is an invalid combination or we don't have enough of a certain value, then disqualify this.
+
+            // is it necessary to check so early that combinationObject[value] has a value greater than dominoPartCounts[value]
             if (Object.keys(combinationObject).some(value => Number(value) > 6 || combinationObject[value] > dominoPartCounts[value])) {
                 //if (Object.keys(combinationObject).some(value => Number(value) > 6)) {
                 combinations.delete(combination);
@@ -256,7 +258,7 @@ export const removeCombinations = () => {
 
             if (shouldCheckRegionsAgain)
                 // are you sure !== will work properly here?
-                regionsToCheck = combinationRegions.filter(region => region !== combinationRegion);
+                regionsToCheck = combinationRegions.filter(region => region !== combinationRegion && (region?.combinations?.size > 1));
         }
     }
 

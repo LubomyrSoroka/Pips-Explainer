@@ -846,7 +846,7 @@ const lookAhead = (leastOptionsPlacement) => {
             }
         }
         // if you found a solution, then you should not add any of the possible placements as children.
-        // but should you adda any of the definite placements either?
+        // but should you add any of the definite placements either?
 
         roots[i].definitePlacements = [...(result?.foundPlacements || [])];
 
@@ -1124,11 +1124,12 @@ export const solve = async () => {
     const date = new Date(document.querySelector('#puzzle-date').value);
     const difficulty = document.querySelector('#puzzle-difficulty').value.toLowerCase();
 
-    const allData = await fetch(`https://www.nytimes.com/svc/pips/v1/${date.toISOString().split('T')[0]}.json`, {
-        headers: {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/[IP_ADDRESS] Safari/537.36'
-        }
-    });
+    // const allData = await fetch(`https://www.nytimes.com/svc/pips/v1/${date.toISOString().split('T')[0]}.json`, {
+    //     headers: {
+    //         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/[IP_ADDRESS] Safari/537.36'
+    //     }
+    // });
+    const allData = await fetch(`https://broad-rain-ab62.l-soroka333.workers.dev/?date=${date.toISOString().split('T')[0]}`);
 
     const json = await allData.json();
 
