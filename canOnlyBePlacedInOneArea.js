@@ -1,4 +1,5 @@
 import { dominoes, updateStructure, validIndices, validCellsToDirections, check, adjustConditions, satisfiesRegionConditions, copyIndicesAndRegions, resetIndicesAndRegions, foundDominoes, finalSolution, getOtherIndex, isOutOfBoundsOrFilled, noRepeatPossibleDominoPlacements } from "./explainer.js"
+import { updateDominoesPerCell } from "./findSingleCellDominoes.js"
 
 
 export const rule_canOnlyBePlacedInOneArea = (originalConditionsPointer, originalRegionsPointer, silenced) => {
@@ -72,6 +73,7 @@ export const rule_canOnlyBePlacedInOneArea = (originalConditionsPointer, origina
             const placement = { dominoEntry, reasoning: `Added through rule_canOnlyBePlacedInOneArea` }
             if (!silenced) {
                 finalSolution.push(placement);
+                updateDominoesPerCell(JSON.parse(domino), [placements[0].region, otherIndices]);
             }
             foundPlacements.push(placement);
             foundAreasAndDominoes.push(dominoEntry);

@@ -6,10 +6,26 @@ Refactor:
 - make foundDominoes a set and not a list.
 - stop using directions and start using displacements (everywhere)
     - Make the list of direction a set instead of a list though so that you can remove them more easily in noRepeatDirection in canOnlyBePlacedByOneArea.
+
 - make the satisfyconditions and then check thing (to check a domino placement at a cell in some particular direction) be a function that's reused. (Would this be hard to do?)
 - Add an add domino function which modifies the validCells, and the current conditions and regions pointers.
 
+- 
+
+
 Features:
+Use simplest rules first before trying more complicated stuff. Here is one way to do this:
+
+    can only be placed by one domino,
+    can only be placed in one area,
+    can be placed by one of the above by using combinations and equals regions stuff first
+    can be placed with the help of the findSingleCellDominoes function.
+    can be placed by discovering placements through the use of updateStructure (but maybe just the simple updateStructure)
+    can be placed by use of more complicated updateStructure
+    lookahead. 
+
+    and if you do run the combinations thing or the structure thing, you can use its discoveries as much as you want later?
+
 Do AC3? but for the combinations found for each region. E.g, if a 9 region in two cells has {3, 6} and {4, 5} and a 10 region in two cells ONLY has {4, 6}. Then you can remove {3, 6}
 from the 9 region because that one would make the combination at 10 impossible.
 
@@ -35,6 +51,10 @@ There's a very large region with a high sum and this is going to make it extreme
 
 
 Improvements:
+
+November 4, 2026 Medium:
+Can convert the >4 in one cell to be a single 5 since you at a certain point, you don't have anymore 6's.
+
 November 3, 2026 Hard:
 If it were to look at the two possibilities at the cell (1, 2), then you can easily disqualify the [0,4] domino easily and 
 get two placements with very minimal search as compared to how much its searching with the <3 region (even the region itself only has 2 possibilities as well)

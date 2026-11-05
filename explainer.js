@@ -28,6 +28,20 @@ export const getOtherIndex = ([i, j], direction) => {
     }
 }
 
+export const getOtherIndexString = (stringCoords, direction) => {
+    const [i, j] = stringCoords.split(',').map(Number);
+    switch (direction) {
+        case DOWN:
+            return [i + 1, j];
+        case UP:
+            return [i - 1, j];
+        case LEFT:
+            return [i, j - 1];
+        case RIGHT:
+            return [i, j + 1];
+    }
+}
+
 import { getCombinations, removeCombinations } from "./GetCombinations.js";
 import { updateCombinations } from "./GetCombinations.js";
 
@@ -39,6 +53,8 @@ export const setValidIndices = (newValidIndices) => {
 }
 
 import { rule_canOnlyBePlacedInOneArea } from "./canOnlyBePlacedInOneArea.js";
+import { findSingleCellDominoes } from "./findSingleCellDominoes.js";
+import { dominoesPerCell, updateDominoesPerCell } from './findSingleCellDominoes.js'
 
 export const copyIndicesAndRegions = (originalConditionsPointer, originalRegionsPointer) => {
     ({ indicesToRegion, regions } = structuredClone({ indicesToRegion: originalConditionsPointer, regions: originalRegionsPointer }));
@@ -219,7 +235,7 @@ export const satisfiesRegionConditions = (row, col, dominoPart) => {
 }
 
 export let validCellsToDirections = new Map();
-let indicesToRegion = {};
+export let indicesToRegion = {};
 
 //dominoPartCountHistory = [];
 cellsToDirections = [];
@@ -372,7 +388,7 @@ export const updateStructure = (silenced = false) => {
                         continue;
                     let hasValid = false;
 
-                    outerDominoLoop: for (const domino of dominoes) {
+                    outerDominoLoop: for (const domino of dominoesPerCell[`${i},${j}`] ?? dominoes) {
                         if (foundDominoes.some(foundDomino => foundDomino[0] === domino[0] && foundDomino[1] === domino[1]))
                             continue;
                         //------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -503,6 +519,8 @@ const oppositeDirection = (direction) => {
             return RIGHT;
     }
 }
+
+// used by updateStructure to obtain a list of cells and directions such that no cell direction pair is equivalent to any other.
 const getNoRepeatDirections = () => {
     noRepeatPossibleDominoPlacements = structuredClone(validCellsToDirections);
     for (const [cell, directions] of Array.from(noRepeatPossibleDominoPlacements.entries())) {
@@ -545,7 +563,7 @@ const rule_canOnlyBePlacedByOneDomino = (dominoes, silenced = false) => {
         possibleDominoPlacementsCurrent = [];
         const validDirections = validCellsToDirections.get(`${i},${j}`);
 
-        outerLoop: for (const domino of dominoes) {
+        outerLoop: for (const domino of dominoesPerCell[`${i},${j}`]) {
             // this doesn't account for the case where you have the same domino twice (rare)
 
             // this should use a set with strings instead.
@@ -623,6 +641,7 @@ const rule_canOnlyBePlacedByOneDomino = (dominoes, silenced = false) => {
             if (!silenced) {
                 const singlePlacementCells = Array.from(validCellsToDirections).filter(([cell, directions]) => directions.length === 1);
                 finalSolution.push({ dominoEntry, reasoning: reasoningOnlyOneDomino, singlePlacementCells, additionalCellsThatGiveStructure: null, oneDirectionFromDominoEliminationCells });
+                updateDominoesPerCell(validDomino, [[i, j], otherIndices]);
 
             }
 
@@ -790,6 +809,7 @@ const lookAhead = (leastOptionsPlacement) => {
                 foundDominoes.push(validOption.domino);
                 const otherIndices = getOtherIndex(validOption.cell, validOption.direction);
 
+                updateDominoesPerCell(validOption.domino, [validOption.cell, otherIndices])
                 // is this necessary?
                 // validCellsToDirections.set(dominoEntry.cell.join(','), [dominoEntry.direction]);
                 // validCellsToDirections.delete(otherIndices.join(','));
@@ -894,25 +914,6 @@ const updateRegionsAndDominoPartCounts = () => {
         dominoPartCounts[domino[0]] -= 1;
         dominoPartCounts[domino[1]] -= 1;
     }
-    // go through the 1 cell regions first.
-    // for (let i = 0; i < regions.length; ++i) {
-    //     const entry = regions[i];
-    //     if (entry.indices.length === 1 && entry.type === 'sum' && validIndices.has(entry.indices[0].join(','))) {
-    //         --dominoPartCounts[entry.target];
-    //     }
-    //     else if (entry.indices.length === 1 && entry.type === 'greater') {
-    //         if (entry.target === '5' && validIndices.has(entry.indices[0].join(','))) {
-    //             indicesToRegion[indexKey] = { type: 'sum', target: 6, numberOfCells: 1, indices: [i] }
-    //             --dominoPartCounts[6];
-    //         }
-    //     }
-    //     else if (entry.indices.length === 1 && entry.type === 'less' && validIndices.has(entry.indices[0].join(','))) {
-    //         if (entry.target === '1') {
-    //             indicesToRegion[indexKey] = { type: 'sum', target: 0, numberOfCells: 1, indices: [i] }
-    //             --dominoPartCounts[0];
-    //         }
-    //     }
-    // }
 
     // say there is a 12 region in 2 cells that wasn't elimiated earlier. This must use two 6's.
     // say you go through a 15 region in 3 cells. Possible combos are 5,5,5 or 6,4,5.
@@ -1026,9 +1027,6 @@ export const isOutOfBoundsOrFilled = (row, col) => {
 }
 
 
-
-
-
 const runRules = (silenced = false) => {
     // first time, this is fine. But on later calls, it's more efficient to just call updateRegions on everything.
     // or maybe you don't need to even call that as adjustcombinations could already be modifying the combinations.
@@ -1047,25 +1045,6 @@ const runRules = (silenced = false) => {
 }
 
 const runUntilNoDefinitePlacements = (silenced) => {
-
-    // let onlyOneDominoResult = null;
-    // let onlyOneAreaResult = null;
-    // const allFoundPlacements = [];
-    // do {
-    //     onlyOneDominoResult = rule_canOnlyBePlacedByOneDomino(dominoes, silenced);
-    //     if (onlyOneDominoResult?.type !== INVALID_ARRANGEMENT && onlyOneDominoResult.foundPlacements.length > 0) {
-    //         allFoundPlacements.push(...onlyOneDominoResult.foundPlacements);
-    //         continue;
-    //     }
-    //     onlyOneAreaResult = rule_canOnlyBePlacedInOneArea();
-    //     if (onlyOneAreaResult?.type !== INVALID_ARRANGEMENT) {
-    //         allFoundPlacements.push(...onlyOneAreaResult.foundPlacements);
-    //         continue;
-    //     }
-    //     if (onlyOneDominoResult?.type !== INVALID_ARRANGEMENT && onlyOneDominoResult.foundPlacements.length > 0) {
-    //         allFoundPlacements.push(...onlyOneDominoResult.foundPlacements);
-    //     }
-    // } while (result?.type !== INVALID_ARRANGEMENT && result.foundPlacements.length > 0 && canPlaceDomino());
 
     let result = null;
     const allFoundPlacements = [];
@@ -1141,7 +1120,12 @@ export const solve = async () => {
     board = data.regions;
     getBoardCoords(board);
     updateRegionsAndDominoPartCounts();
+    updateEqualsRegions();
+
+
     updateStructure();
+
+    findSingleCellDominoes();
 
     const singlePlacementCells = Array.from(validCellsToDirections.entries()).filter(([cell, direction]) => direction.length === 1);
     if (singlePlacementCells.length > 0)
