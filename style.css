@@ -6,7 +6,8 @@
     --border-width: 2px;
     --badge-length: 30px;
     --border-radius: 10px;
-    --circle-diametre: 8px;
+    --circle-diametre: 6px;
+    --half-domino-square-length: 45px;
 }
 
 body {
@@ -22,6 +23,12 @@ body {
     font-family: Arial, sans-serif;
 }
 
+#game {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
 #board {
     display: grid;
     position: relative;
@@ -35,6 +42,21 @@ body {
 #part-counts {
     display: flex;
     gap: 10px;
+}
+
+#controls {
+    display: flex;
+    gap: 5px;
+}
+
+#reasoning-text {
+    height: 50px;
+    text-align: center;
+}
+
+#subreasoning-text {
+    height: 10px;
+    text-align: center;
 }
 
 .domino-half {
@@ -55,8 +77,8 @@ body {
 }
 
 .pips {
-    width: 60px;
-    height: 60px;
+    width: var(--half-domino-square-length);
+    height: var(--half-domino-square-length);
     /* display: flex;
     justify-content: center;
     align-items: center; */
@@ -187,7 +209,7 @@ body {
     margin-left: 2px;
 }
 
-.circle{
+.circle {
     border-radius: 50%;
     width: var(--circle-diametre);
     height: var(--circle-diametre);

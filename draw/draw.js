@@ -144,11 +144,10 @@ function getSymbol(cage) {
 
         case 'sum':
             return cage.target;
-
         case 'equals':
             return '=';
         case 'set':
-            return '&ne;';
+            return '≠';
         default:
             return '';
     }
@@ -240,6 +239,16 @@ function createBoard(board) {
         }
     }
 }
+
+const scaleGame = () => {
+    const game = document.getElementById('game');
+    const margin = 15;
+
+    const ratio = (document.documentElement.clientWidth - margin * 2)
+        / game.offsetWidth;
+
+    game.style.zoom = Math.min(1, ratio);
+};
 
 function addCageBorders(
     cell,
@@ -403,9 +412,9 @@ export const draw = () => {
     const dominoesElement = document.querySelector('#dominoes');
     dominoesElement.replaceChildren();
 
-    partCountsElement.replaceChildren();
 
-    sumsElements.replaceChildren();
+    // partCountsElement.replaceChildren();
+    // sumsElements.replaceChildren();
 
     const boardCopy = structuredClone(board);
     indicesToRegion = new Map();
@@ -417,10 +426,11 @@ export const draw = () => {
 
     getRegionMap(boardCopy);
     setColors();
-    setPartCounts();
-    setDominoSum();
+    // setPartCounts();
+    // setDominoSum();
     createBoard(boardCopy);
     addDominoes(dominoes);
+    scaleGame();
 
     // depth order:
     // board backgroudn (darker brown)
