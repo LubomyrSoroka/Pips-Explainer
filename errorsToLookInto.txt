@@ -32,6 +32,10 @@ from the 9 region because that one would make the combination at 10 impossible.
 
 
 Errors/Problems: 
+
+November 5, 2026 Easy:
+The oneArea rule doesn't correctly place the [4,4] domino.
+
 November 1, 2026 Hard:
 For the first structure dominoes that it gets due to all directions implying the same,
 it doesn't show that the 8 region in 2 cells doesn't have a domino that can fit in it (which is useful to understand why the structure looks as it does).
@@ -51,6 +55,9 @@ There's a very large region with a high sum and this is going to make it extreme
 
 
 Improvements:
+
+November 5, 2026 Hard:
+Can place [3,3] earlier???
 
 November 4, 2026 Medium:
 Can convert the >4 in one cell to be a single 5 since you at a certain point, you don't have anymore 6's.

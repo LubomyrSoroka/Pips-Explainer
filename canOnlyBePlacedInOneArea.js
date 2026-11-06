@@ -42,7 +42,15 @@ export const rule_canOnlyBePlacedInOneArea = (originalConditionsPointer, origina
             }
         }
     }
+    // I'm not sure this is working after I refactored it and put code into that separate function.
+    findSinglePlacements(dominoToPlacements);
+    //resetIndicesAndRegions(originalConditionsPointer, originalRegionsPointer)
+    return { foundPlacements: foundAreasAndDominoes };
+}
 
+
+export const findSinglePlacements = (originalConditionsPointer, originalRegionsPointer, dominoToPlacements, silenced) => {
+    const foundAreasAndDominoes = [];
     for (const [domino, placements] of Object.entries(dominoToPlacements)) {
         // if it's 0, then the configuration is invalid... this can be a useful alternative to the current to add to checking invalid configs.
 
@@ -72,13 +80,15 @@ export const rule_canOnlyBePlacedInOneArea = (originalConditionsPointer, origina
             updateStructure(silenced);
             const placement = { dominoEntry, reasoning: `Added through rule_canOnlyBePlacedInOneArea` }
             if (!silenced) {
+                const singlePlacementCells = Array.from(validCellsToDirections).filter(([cell, directions]) => directions.length === 1);
                 finalSolution.push(placement);
                 updateDominoesPerCell(JSON.parse(domino), [placements[0].region, otherIndices]);
             }
-            foundPlacements.push(placement);
+            //foundPlacements.push(placement);
             foundAreasAndDominoes.push(dominoEntry);
             foundDominoes.push(JSON.parse(domino));
         }
+
         // imagine this scenario: one cell region has exactly two placements (including flips) and another region has the exact same two placements.
         // then if a third region has those two placements plus one more, you can remove those two placements that are used in the other regions.
 
@@ -125,7 +135,6 @@ export const rule_canOnlyBePlacedInOneArea = (originalConditionsPointer, origina
     }
 
     resetIndicesAndRegions(originalConditionsPointer, originalRegionsPointer)
-    //copyIndicesAndRegions(originalConditionsPointer, originalRegionsPointer);
-    return { foundPlacements: foundAreasAndDominoes };
-}
+    return { foundPlacements: foundAreasAndDominoes }
 
+}

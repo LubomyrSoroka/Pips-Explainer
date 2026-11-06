@@ -52,7 +52,7 @@ export const setValidIndices = (newValidIndices) => {
     validIndices = newValidIndices;
 }
 
-import { rule_canOnlyBePlacedInOneArea } from "./canOnlyBePlacedInOneArea.js";
+import { findSinglePlacements } from "./canOnlyBePlacedInOneArea.js";
 import { findSingleCellDominoes } from "./findSingleCellDominoes.js";
 import { dominoesPerCell, updateDominoesPerCell } from './findSingleCellDominoes.js'
 
@@ -542,7 +542,8 @@ const getNoRepeatDirections = () => {
 const reasoningOnlyOneDomino = "Added domino in this position through rule_canOnlyBePlacedByOneDomino";
 export let foundDominoes = [];
 const rule_canOnlyBePlacedByOneDomino = (dominoes, silenced = false) => {
-    const foundAreasAndDominoes = [];
+    const dominoToPlacements = [];
+    let foundAreasAndDominoes = [];
     let possibleDominoPlacementsSmallest = [];
     let possibleDominoPlacementsCurrent = [];
 
@@ -604,6 +605,13 @@ const rule_canOnlyBePlacedByOneDomino = (dominoes, silenced = false) => {
                             flipped: validFlipped
                         }
                         possibleDominoPlacementsCurrent.push(dominoEntry);
+
+                        // for use by canOnlyBePlacedInOneArea
+                        // there could be a simpler way of doing this, but if a domino can go in region (i, j) in, say, direction up, then don't also add region (i+1, j) in direction down.
+                        if (noRepeatPossibleDominoPlacements.has(`${i},${j}`) && noRepeatPossibleDominoPlacements.get(`${i},${j}`)?.includes(direction)) {
+                            dominoToPlacements[JSON.stringify(domino)] ??= [];
+                            dominoToPlacements[JSON.stringify(domino)].push({ region: [i, j], flipped: validFlipped, direction: validDirection });
+                        }
                         //------------------------------------------------------------------------------------------------------------------------------------------------------
                     }
                 }
@@ -659,9 +667,23 @@ const rule_canOnlyBePlacedByOneDomino = (dominoes, silenced = false) => {
         }
     }
 
+
     indicesToRegion = originalConditionsPointer;
     regions = originalRegionsPointer;
     //validCellsToDirections = originalValidCellsToDirections;
+
+    if (foundAreasAndDominoes.length === 0) {
+        // only call the findOneArea rule if you didn't manage to find anything from the oneDomino rule
+        const result = findSinglePlacements(indicesToRegion, regions, dominoToPlacements, silenced)
+        if (result?.type === INVALID_ARRANGEMENT)
+            return { type: INVALID_ARRANGEMENT }
+        else
+            foundAreasAndDominoes = result?.foundPlacements
+    }
+
+    indicesToRegion = originalConditionsPointer;
+    regions = originalRegionsPointer;
+
     return { foundPlacements: foundAreasAndDominoes, possiblePlacements: possibleDominoPlacementsSmallest };
 }
 
@@ -1052,13 +1074,13 @@ const runUntilNoDefinitePlacements = (silenced) => {
         result = rule_canOnlyBePlacedByOneDomino(dominoes, silenced);
         if (result?.type === INVALID_ARRANGEMENT)
             break;
-        const oneAreaResult = rule_canOnlyBePlacedInOneArea(indicesToRegion, regions, silenced);
-        if (oneAreaResult?.type === INVALID_ARRANGEMENT) {
-            result.type = INVALID_ARRANGEMENT;
-            break;
-        }
+        // const oneAreaResult = rule_canOnlyBePlacedInOneArea(indicesToRegion, regions, silenced);
+        // if (oneAreaResult?.type === INVALID_ARRANGEMENT) {
+        //     result.type = INVALID_ARRANGEMENT;
+        //     break;
+        // }
 
-        result.foundPlacements.push(...oneAreaResult.foundPlacements);
+        //result.foundPlacements.push(...oneAreaResult.foundPlacements);
 
         // let index = 0;
         // for (const possiblePlacement of result.possiblePlacements) {
