@@ -33,8 +33,6 @@ from the 9 region because that one would make the combination at 10 impossible.
 
 Errors/Problems: 
 
-Oct. 18, 2026 Hard:
-Can't solve.
 
 
 November 1, 2026 Hard:
@@ -59,6 +57,10 @@ Improvements:
 
 November 5, 2026 Hard:
 Can place [3,3] earlier??? This would also require having multiple roots for lookahead.
+Alternatively, can try to "guess" that the square is all ones (only two valid guesses since the square needs a double domino). This would imply that the [1,2] domino
+must go in the square. But then you have no 1's and no 2's so there is no combination that can fit in the sum of 2 in 2 cells.
+Then the (5,6) cell can only take [1,2] or [1,1]. If you place [1,1], then you must use [1,2] to have the sum of 3 in 2 cells. So either
+possibilty uses the 2 implying that the sum of 2 in 2 squares must be made out of 2 1's.
 
 November 4, 2026 Medium:
 Can convert the >4 in one cell to be a single 5 since you at a certain point, you don't have anymore 6's.
@@ -103,6 +105,10 @@ Oct. 18, 2026 Hard, Aug. 17 2026 Hard (The two circles puzzle)
 
 
 Resolved:
+
+Oct. 18, 2026 Hard:
+Can't solve.
+Solved by reseting indices and dominoes at the end of the getDominoes function in findSingleCellDominoes.js
 
 November 5, 2026 Easy:
 The oneArea rule doesn't correctly place the [4,4] domino.

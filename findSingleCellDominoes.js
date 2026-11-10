@@ -128,6 +128,7 @@ const getDominoes = (i, j, existingValidDominoes, originalConditionsPointer, ori
             }
         }
     }
+    resetIndicesAndRegions(originalConditionsPointer, originalRegionsPointer);
 }
 
 

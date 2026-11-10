@@ -90,15 +90,24 @@ export const clickNext = async (direction) => {
                 return;
             }
             for (const [index, child] of root.children.entries()) {
+                if (shouldExit)
+                    return;
                 if (index === 0) {
                     await waitForNextClick(nextForWrongPath, nextButton);
                 }
-                let definitePlacementsCount = child?.definitePlacements?.length;
+                //let definitePlacementsCount = child?.definitePlacements?.length;
+                let definitePlacementsCount = 0;
                 subReasoningText.textContent = '';
                 putDominoOnBoard(child.value, INCORRECT);
 
                 for (const placement of child.definitePlacements ?? []) {
                     await waitForNextClick(nextForWrongPath, nextButton);
+                    if (shouldExit) {
+                        nextButton.addEventListener('click', clickForward);
+                        backButton.addEventListener('click', clickBackward);
+                        return;
+                    }
+                    ++definitePlacementCount;
                     putDominoOnBoard(placement, FOLLOWINGPLACEMENT);
                 }
                 // is it possible to have a reason but no cells to highlight?
@@ -116,7 +125,7 @@ export const clickNext = async (direction) => {
 
                 await waitForNextClick(nextForWrongPath, nextButton);
                 if (shouldExit) {
-                    clickNext(direction);
+                    // after calling clickNext it places the current? domimo only to have it immediately removed from the call right after dfs here.
                     nextButton.addEventListener('click', clickForward);
                     backButton.addEventListener('click', clickBackward);
                     return;
@@ -125,6 +134,7 @@ export const clickNext = async (direction) => {
                 removeDomino(definitePlacementsCount + 1)
             }
         }
+
         let definitePlacementCount;
         for (const root of invalidRoots[JSON.stringify(dominoEntry.cell)]) {
             await waitForNextClick(nextForWrongPath, nextButton);
@@ -136,11 +146,21 @@ export const clickNext = async (direction) => {
                 clickNext(direction);
                 return;
             }
+
+            // remove the correct domino and add the invalid one in its place.
             removeDomino(1);
             putDominoOnBoard(root.value, INCORRECT);
-            definitePlacementCount = root?.definitePlacements?.length;
+
+            //definitePlacementCount = root?.definitePlacements?.length;
+            definitePlacementCount = 0;
             for (const placement of root.definitePlacements ?? []) {
                 await waitForNextClick(nextForWrongPath, nextButton);
+                if (shouldExit) {
+                    nextButton.addEventListener('click', clickForward);
+                    backButton.addEventListener('click', clickBackward);
+                    return;
+                }
+                ++definitePlacementCount;
                 putDominoOnBoard(placement, FOLLOWINGPLACEMENT);
             }
 
@@ -148,6 +168,8 @@ export const clickNext = async (direction) => {
                 const subReasoningText = document.querySelector('#sub-reasoning-text');
                 subReasoningText.textContent = root.reason;
             }
+
+            // this shows the highlighted cell which has no valid placements.
             if (root?.cells) {
                 let lastHighlightedWrongCell;
                 for (const cell of root.cells) {
