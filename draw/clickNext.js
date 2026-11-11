@@ -1,9 +1,10 @@
 import { nextButton, nextForWrongPath, controls, INCORRECT, FOLLOWINGPLACEMENT, backButton, clickForward, clickBackward, BACKWARD } from './draw.js';
 import { highlightCell, unhighlightCell } from './highlightCell.js';
-import { waitForNextClick, shouldExit } from "./waitForNextClick.js";
+import { waitForNextClick, lastDirection } from "./waitForNextClick.js";
 import { drawStructure } from "./drawStructure.js";
 import { invalidRoots, finalSolution } from "../explainer.js"
 import { putDominoOnBoard, removeDomino } from './putDominoOnBoard.js';
+
 
 let lastHighlightedCurrent = null;
 let currentIndex = -1;
@@ -34,12 +35,6 @@ export const clickNext = async (direction) => {
     else
         backButton.style.display = 'block'
 
-    if (direction === BACKWARD) {
-        removeDomino(1);
-        nextButton.addEventListener('click', clickForward);
-        backButton.addEventListener('click', clickBackward);
-        return;
-    }
 
 
     const reasoningText = document.querySelector('#reasoning-text');
@@ -63,28 +58,37 @@ export const clickNext = async (direction) => {
     }
 
 
-    if (!dominoEntry) {
+    if (dominoEntry) {
+        if (lastHighlightedCurrent)
+            unhighlightCell(lastHighlightedCurrent);
+        lastHighlightedCurrent = highlightCell(dominoEntry.cell, lastSinglePlacementCells.has(`${dominoEntry.cell[0]},${dominoEntry.cell[1]}`) ? dominoEntry.direction : null);
+    }
+    else {
         nextButton.addEventListener('click', clickForward);
         backButton.addEventListener('click', clickBackward);
         return;
     }
 
-    putDominoOnBoard(dominoEntry);
+    if (direction === BACKWARD)
+        removeDomino(1);
+    else
+        putDominoOnBoard(dominoEntry);
 
-    if (finalSolution.length === 0) {
-        controls.replaceChildren();
-        const doneText = document.createElement('span');
-        doneText.textContent = 'Solved!';
-        controls.appendChild(doneText);
-    }
+    // if (finalSolution.length === 0) {
+    //     controls.replaceChildren();
+    //     const doneText = document.createElement('span');
+    //     doneText.textContent = 'Solved!';
+    //     controls.appendChild(doneText);
+    // }
 
-    if (lastHighlightedCurrent)
-        unhighlightCell(lastHighlightedCurrent);
 
-    lastHighlightedCurrent = highlightCell(dominoEntry.cell, lastSinglePlacementCells.has(`${dominoEntry.cell[0]},${dominoEntry.cell[1]}`) ? dominoEntry.direction : null);
-
+    // clicking both back and forward in the middle of an alternate path just takes you to the current correct placement (they do the same thing)
+    // is this a good implementation?
     if (invalidRoots[JSON.stringify(dominoEntry.cell)] && invalidRoots[JSON.stringify(dominoEntry.cell)].length > 0) {
         nextForWrongPath.style.display = 'block';
+        let firstCall = true;
+        let exitedImmediately = false;
+        let shouldExit = false;
         const dfs = async (root) => {
             if (root.children.length === 0) {
                 return;
@@ -92,22 +96,33 @@ export const clickNext = async (direction) => {
             for (const [index, child] of root.children.entries()) {
                 if (shouldExit)
                     return;
-                if (index === 0) {
-                    await waitForNextClick(nextForWrongPath, nextButton);
+                if (firstCall) {
+                    shouldExit = await waitForNextClick();
+                    if (shouldExit) {
+                        // nextButton.addEventListener('click', clickForward);
+                        // backButton.addEventListener('click', clickBackward);
+                        exitedImmediately = true;
+                        //clickNext(lastDirection);
+                        return;
+                    }
+                    // remove the correct domino and add the first invalid one in its place.
+                    removeDomino(1);
+                    // (it will be added by the proceeding code)
+                    firstCall = false;
                 }
-                //let definitePlacementsCount = child?.definitePlacements?.length;
                 let definitePlacementsCount = 0;
                 subReasoningText.textContent = '';
                 putDominoOnBoard(child.value, INCORRECT);
 
                 for (const placement of child.definitePlacements ?? []) {
-                    await waitForNextClick(nextForWrongPath, nextButton);
+                    shouldExit = await waitForNextClick();
                     if (shouldExit) {
-                        nextButton.addEventListener('click', clickForward);
-                        backButton.addEventListener('click', clickBackward);
+                        // nextButton.addEventListener('click', clickForward);
+                        // backButton.addEventListener('click', clickBackward);
+                        removeDomino(definitePlacementsCount + 1)
                         return;
                     }
-                    ++definitePlacementCount;
+                    ++definitePlacementsCount;
                     putDominoOnBoard(placement, FOLLOWINGPLACEMENT);
                 }
                 // is it possible to have a reason but no cells to highlight?
@@ -123,73 +138,34 @@ export const clickNext = async (direction) => {
                     subReasoningText.textContent = '';
                 }
 
-                await waitForNextClick(nextForWrongPath, nextButton);
+                shouldExit = await waitForNextClick();
                 if (shouldExit) {
                     // after calling clickNext it places the current? domimo only to have it immediately removed from the call right after dfs here.
-                    nextButton.addEventListener('click', clickForward);
-                    backButton.addEventListener('click', clickBackward);
+                    // nextButton.addEventListener('click', clickForward);
+                    // backButton.addEventListener('click', clickBackward);
+                    removeDomino(definitePlacementsCount + 1)
                     return;
                 }
                 await dfs(child);
                 removeDomino(definitePlacementsCount + 1)
+                // but what if you should remove the non-definite placement before that as its the last one?
             }
         }
-
-        let definitePlacementCount;
-        for (const root of invalidRoots[JSON.stringify(dominoEntry.cell)]) {
-            await waitForNextClick(nextForWrongPath, nextButton);
-            if (shouldExit) {
-                nextButton.addEventListener('click', clickForward);
-                backButton.addEventListener('click', clickBackward);
-                if (definitePlacementCount)
-                    removeDomino(definitePlacementCount + 1);
-                clickNext(direction);
-                return;
-            }
-
-            // remove the correct domino and add the invalid one in its place.
-            removeDomino(1);
-            putDominoOnBoard(root.value, INCORRECT);
-
-            //definitePlacementCount = root?.definitePlacements?.length;
-            definitePlacementCount = 0;
-            for (const placement of root.definitePlacements ?? []) {
-                await waitForNextClick(nextForWrongPath, nextButton);
-                if (shouldExit) {
-                    nextButton.addEventListener('click', clickForward);
-                    backButton.addEventListener('click', clickBackward);
-                    return;
-                }
-                ++definitePlacementCount;
-                putDominoOnBoard(placement, FOLLOWINGPLACEMENT);
-            }
-
-            if (root?.reason) {
-                const subReasoningText = document.querySelector('#sub-reasoning-text');
-                subReasoningText.textContent = root.reason;
-            }
-
-            // this shows the highlighted cell which has no valid placements.
-            if (root?.cells) {
-                let lastHighlightedWrongCell;
-                for (const cell of root.cells) {
-                    lastHighlightedWrongCell = highlightCell(cell, null, 'red');
-                }
-                await waitForNextClick(nextForWrongPath, nextButton);
-                unhighlightCell(lastHighlightedWrongCell);
-                subReasoningText.textContent = '';
-            }
-            await dfs(root);
-            removeDomino(definitePlacementCount + 1)
+        const pseudoRoot = { children: invalidRoots[JSON.stringify(dominoEntry.cell)] };
+        await dfs(pseudoRoot);
+        // if you go through any of the alternate paths, then the original domino will have to be added back
+        if (!exitedImmediately)
+            putDominoOnBoard(dominoEntry);
+        // if not, then click next (but don't add the listeners back already or you will click twice) 
+        else {
+            clickNext(lastDirection)
+            return;
         }
-        //removeDomino(definitePlacementCount + 1)
-        nextForWrongPath.style.display = 'none';
-        putDominoOnBoard(dominoEntry);
+
     }
     else {
         nextForWrongPath.style.display = 'none';
     }
-    putDominoOnBoard(dominoEntry);
 
     backButton.addEventListener('click', clickBackward);
     nextButton.addEventListener('click', clickForward);
