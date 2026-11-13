@@ -4,6 +4,7 @@ import { dominoMap, indicesToCellMap, createHalves } from './draw.js'
 import { getOtherIndex, UP, DOWN, LEFT, RIGHT } from '../explainer.js'
 import { pipCountToHtml, pipCountToHtmlFlipped } from '../pip-html.js';
 
+export const placedCells = new Set()
 export const putDominoOnBoard = (dominoEntry, placementType = NORMAL) => {
 
     // if (dominoEntry?.domino) {
@@ -18,8 +19,10 @@ export const putDominoOnBoard = (dominoEntry, placementType = NORMAL) => {
         dominoElement.style.backgroundColor = 'grey';
         dominoElement.style.border = 'none';
         dominoElement.replaceChildren();
+        placedCells.add(dominoEntry.cell.join(','));
+        const otherIndex = getOtherIndex(dominoEntry.cell, dominoEntry.direction);
+        placedCells.add(otherIndex.join(','))
     }
-
 
     const cell1 = indicesToCellMap.get(`${dominoEntry.cell[0]},${dominoEntry.cell[1]}`)
     const cell1DominoHalf = document.createElement('div');
@@ -152,6 +155,7 @@ export const putDominoOnBoard = (dominoEntry, placementType = NORMAL) => {
 export const removeDomino = (numberToDelete) => {
     for (let i = 0; i < numberToDelete; ++i) {
         const [cell1DominoHalf, cell2DominoHalf, dominoElement, domino] = addedDominoes.pop();
+
         cell1DominoHalf.remove();
         cell2DominoHalf.remove();
         dominoElement.style.background = 'white';
@@ -160,3 +164,13 @@ export const removeDomino = (numberToDelete) => {
     }
 }
 
+export const deleteByStringIndex = (index) => {
+    // if (Array.isArray(index))
+    //     index = index.join(',');
+    const cell = indicesToCellMap.get(index);
+    for (const child of cell.children) {
+        if (!child.classList.contains('tint'))
+            child.remove();
+    }
+
+}

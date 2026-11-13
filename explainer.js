@@ -496,7 +496,13 @@ export const updateStructure = (silenced = false) => {
             validIndices.delete(`${otherIndex[0]},${otherIndex[1]}`);
         }
         if (singlePossibilityCellsInCommon && singlePossibilityCellsInCommon.size > 0 && !silenced) {
-            finalSolution.push({ dominoEntry: undefined, reasoning: `Altered structure due to all directions implying same structure at cell ${i},${j}`, singlePlacementCells: Array.from(singlePossibilityCellsInCommon.entries()), additionalCellsThatGiveStructure: [i, j], oneDirectionFromDominoEliminationCells })
+
+            const singlePlacementCells = Array.from(validCellsToDirections).filter(([cell, directions]) => directions.length === 1);
+
+            //finalSolution.push({ dominoEntry: undefined, reasoning: `Altered structure due to all directions implying same structure at cell ${i},${j}`, singlePlacementCells: Array.from(singlePossibilityCellsInCommon.entries()), additionalCellsThatGiveStructure: [i, j], oneDirectionFromDominoEliminationCells })
+
+            // we will give all singlePlacementCells because otherwise there may be errors
+            finalSolution.push({ dominoEntry: undefined, reasoning: `Altered structure due to all directions implying same structure at cell ${i},${j}`, singlePlacementCells, additionalCellsThatGiveStructure: [i, j], oneDirectionFromDominoEliminationCells })
         }
     }
     getNoRepeatDirections();
@@ -539,7 +545,7 @@ const getNoRepeatDirections = () => {
     }
 }
 
-const reasoningOnlyOneDomino = "Added domino in this position through rule_canOnlyBePlacedByOneDomino";
+const reasoningOnlyOneDomino = "Added domino in this position through because it is the only domino that can fit in this particular cell/cells";
 export let foundDominoes = [];
 const rule_canOnlyBePlacedByOneDomino = (dominoes, silenced = false) => {
     const dominoToPlacements = [];
@@ -814,15 +820,14 @@ const lookAhead = (leastOptionsPlacement) => {
                     flipped: validOption.flipped
                 }
 
-                const reasoning = `Added domino because all other root nodes are invalid at this cell: ${validOption.cell} (through performing depth ${depth} search) `;
+                const reasoning = `Added domino because all other dominoes are invalid at this cell: ${validOption.cell} (through performing depth ${depth} search) `;
                 // console.log(reasoning);
                 // console.dir(dominoEntry, { depth: null });
                 // need to save the incorrect paths to show why they are wrong.
                 // it's already saved in roots.
 
 
-                const singlePlacementCells = Array.from(validCellsToDirections).filter(([cell, directions]) => directions.length === 1);
-                finalSolution.push({ dominoEntry, reasoning, singlePlacementCells, additionalCellsThatGiveStructure: null, oneDirectionFromDominoEliminationCells });
+
                 cellsToDirections.push(structuredClone(validCellsToDirections));
                 //dominoPartCountHistory.push({ ...dominoPartCounts });
 
@@ -843,6 +848,9 @@ const lookAhead = (leastOptionsPlacement) => {
                 // is this to the original indices pointer?
                 adjustConditions([{ cell: validOption.cell, value: validOption.domino[validOption.flipped ? 1 : 0] }, { cell: otherIndices, value: validOption.domino[validOption.flipped ? 0 : 1] }]);
                 updateStructure();
+
+                const singlePlacementCells = Array.from(validCellsToDirections).filter(([cell, directions]) => directions.length === 1);
+                finalSolution.push({ dominoEntry, reasoning, singlePlacementCells, additionalCellsThatGiveStructure: null, oneDirectionFromDominoEliminationCells });
 
                 const result = { foundPlacements: [dominoEntry] }
                 return result;

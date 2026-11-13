@@ -78,9 +78,10 @@ export const findSinglePlacements = (originalConditionsPointer, originalRegionsP
             validIndices.delete(`${otherIndices[0]},${otherIndices[1]}`);
 
             updateStructure(silenced);
-            const placement = { dominoEntry, reasoning: `Added through rule_canOnlyBePlacedInOneArea` }
             if (!silenced) {
                 const singlePlacementCells = Array.from(validCellsToDirections).filter(([cell, directions]) => directions.length === 1);
+                const placement = { dominoEntry, reasoning: `Added because this is the only valid position this particular domino can go in.`, singlePlacementCells }
+
                 finalSolution.push(placement);
                 updateDominoesPerCell(JSON.parse(domino), [placements[0].region, otherIndices], originalConditionsPointer, originalRegionsPointer);
             }

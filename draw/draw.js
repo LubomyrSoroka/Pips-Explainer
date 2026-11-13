@@ -79,7 +79,7 @@ function getBoardSize(board) {
 }
 
 
-let indicesToRegion = new Map();
+export let indicesToRegion = new Map();
 
 function getRegionMap(board) {
     board.forEach((region, regionIndex) => {
@@ -244,10 +244,15 @@ const scaleGame = () => {
     const game = document.getElementById('game');
     const margin = 15;
 
+    // ratio between min width and the current width
     const ratio = (document.documentElement.clientWidth - margin * 2)
         / game.offsetWidth;
 
-    game.style.zoom = Math.min(1, ratio);
+
+    const heightRatio = (document.documentElement.clientHeight - margin * 2) / game.offsetHeight;
+
+    game.style.zoom = Math.min(1, ratio, heightRatio);
+
 };
 
 function addCageBorders(
