@@ -539,7 +539,7 @@ const getNoRepeatDirections = () => {
     }
 }
 
-const reasoningOnlyOneDomino = "Added domino in this position through rule_canOnlyBePlacedByOneDomino";
+const reasoningOnlyOneDomino = "Added domino in this position through because it is the only domino that can fit in this particular cell/cells";
 export let foundDominoes = [];
 const rule_canOnlyBePlacedByOneDomino = (dominoes, silenced = false) => {
     const dominoToPlacements = [];
@@ -814,7 +814,7 @@ const lookAhead = (leastOptionsPlacement) => {
                     flipped: validOption.flipped
                 }
 
-                const reasoning = `Added domino because all other root nodes are invalid at this cell: ${validOption.cell} (through performing depth ${depth} search) `;
+                const reasoning = `Added domino because all other dominoes are invalid at this cell: ${validOption.cell} (through performing depth ${depth} search) `;
                 // console.log(reasoning);
                 // console.dir(dominoEntry, { depth: null });
                 // need to save the incorrect paths to show why they are wrong.

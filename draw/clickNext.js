@@ -4,7 +4,7 @@ import { waitForNextClick, lastDirection } from "./waitForNextClick.js";
 import { drawStructure } from "./drawStructure.js";
 import { invalidRoots, finalSolution } from "../explainer.js"
 import { putDominoOnBoard, removeDomino } from './putDominoOnBoard.js';
-
+import { placedCells } from './putDominoOnBoard.js';
 
 let lastHighlightedCurrent = null;
 let currentIndex = -1;
@@ -30,6 +30,8 @@ export const clickNext = async (direction) => {
 
     currentIndex += direction;
     const { dominoEntry = undefined, reasoning = undefined, singlePlacementCells = new Map(), additionalCellsThatGiveStructure = undefined, oneDirectionFromDominoEliminationCells = new Set() } = finalSolution[currentIndex !== -1 ? currentIndex : 0];
+
+
     if (currentIndex === -1)
         backButton.style.display = 'none';
     else
@@ -43,18 +45,25 @@ export const clickNext = async (direction) => {
     reasoningText.textContent = reasoning;
 
 
-    if (singlePlacementCells && singlePlacementCells.length > 0 && (lastSinglePlacementCells.size === 0 || singlePlacementCells.some(([cell, direction]) => !lastSinglePlacementCells.has(cell)))) {
+    //if (singlePlacementCells && singlePlacementCells.length > 0 && (lastSinglePlacementCells.size === 0 || singlePlacementCells.some(([cell, direction]) => !lastSinglePlacementCells.has(cell)))) {
+    //if (singlePlacementCells && singlePlacementCells.length > 0 && (direction === BACKWARD || singlePlacementCells.some(([cell, direction]) => !lastSinglePlacementCells.has(cell)))) {
+    if (direction === BACKWARD) {
+        if (currentIndex + 1 < finalSolution.length) {
+            const lastEntry = finalSolution[currentIndex + 1];
+            if (lastEntry?.dominoEntry.cell) {
+                placedCells.delete(lastEntry.dominoEntry.cell.join(','));
+            }
+        }
+    }
+    if (singlePlacementCells && singlePlacementCells.length > 0) {
         if (additionalCellsThatGiveStructure)
             highlightedCell = highlightCell(additionalCellsThatGiveStructure, null, 'orange');
         for (const cell of oneDirectionFromDominoEliminationCells)
             highlightedCellsFromElimination.push(highlightCell(cell.split(',').map(Number), null, 'purple'));
         drawStructure(singlePlacementCells);
-
-        // if (!dominoEntry)
-        //     await waitForNextClick(nextButton);
-        for (const [cell, entry] of singlePlacementCells) {
-            lastSinglePlacementCells.set(cell, entry);
-        }
+        // for (const [cell, entry] of singlePlacementCells) {
+        //     lastSinglePlacementCells.set(cell, entry);
+        // }
     }
 
 
@@ -69,8 +78,9 @@ export const clickNext = async (direction) => {
         return;
     }
 
-    if (direction === BACKWARD)
+    if (direction === BACKWARD) {
         removeDomino(1);
+    }
     else
         putDominoOnBoard(dominoEntry);
 

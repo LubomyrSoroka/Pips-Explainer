@@ -56,6 +56,10 @@ There's a very large region with a high sum and this is going to make it extreme
 
 Improvements:
 
+November 12, 2026 Hard:
+Do not need to consider [5,5] as shown in the image as all doubles have forced positions. This scenario
+can make use of the rule where you try every possibility at a cell (and get that both possibilities imply the placement here)
+
 November 5, 2026 Hard:
 Can place [3,3] earlier??? This would also require having multiple roots for lookahead.
 Alternatively, can try to "guess" that the square is all ones (only two valid guesses since the square needs a double domino). This would imply that the [1,2] domino
