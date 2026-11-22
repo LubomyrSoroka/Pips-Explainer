@@ -41,8 +41,10 @@ export const highlightCell = (cell, direction = null, color = 'green') => {
 
 
 export const unhighlightCell = (lastHighlightedCell) => {
-    lastHighlightedCell.forEach(cell => cell.cellElement.style.border = cell.lastBorder);
-    lastHighlightedCell = null;
+    if(lastHighlightedCell){
+        lastHighlightedCell.forEach(cell => cell.cellElement.style.border = cell.lastBorder);
+        lastHighlightedCell = null;
+    }
 }
 
 // const highlightWrongCell = (cell, direction = null) => {

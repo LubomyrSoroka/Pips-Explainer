@@ -54,7 +54,7 @@ export const setValidIndices = (newValidIndices) => {
 
 import { findSinglePlacements } from "./canOnlyBePlacedInOneArea.js";
 import { findSingleCellDominoes } from "./findSingleCellDominoes.js";
-import { dominoesPerCell, updateDominoesPerCell } from './findSingleCellDominoes.js'
+import { dominoesPerCell, updateDominoesPerCell, resetVars} from './findSingleCellDominoes.js'
 
 export const copyIndicesAndRegions = (originalConditionsPointer, originalRegionsPointer) => {
     ({ indicesToRegion, regions } = structuredClone({ indicesToRegion: originalConditionsPointer, regions: originalRegionsPointer }));
@@ -405,6 +405,7 @@ export const updateStructure = (silenced = false) => {
                             //------------------------------------------------------------------------------------------------------------------------------------------------------
                         }
                     }
+
                     if (hasValid) {
                         validOtherIndex = [...otherIndex];
                         validDirections.push(direction);
@@ -765,7 +766,6 @@ const lookAhead = (leastOptionsPlacement) => {
         validCellsToDirections = structuredClone(originalValidCellsToDirections);
         cellCoordinatesToIgnore = new Set(originalCellCoordinatesToIgnore);
         oneDirectionFromDominoEliminationCells = new Set(originalOneDirectionFromDominoEliminationCells);
-
         const originalWillBePlaced = new Set(willBePlaced);
         updateStructure(true);
 
@@ -773,7 +773,10 @@ const lookAhead = (leastOptionsPlacement) => {
         // I think I could optimize this...
 
         let result = runRules(true) // if any of the rules fail, then this option must not be possible
+
+        // I'm resetting some of the values here and some of them elsewhere...
         willBePlaced = originalWillBePlaced;
+        cellCoordinatesToIgnore = originalCellCoordinatesToIgnore;
         if (result?.type === INVALID_ARRANGEMENT) {
 
 
@@ -782,6 +785,8 @@ const lookAhead = (leastOptionsPlacement) => {
             roots[i].cells = result?.cells;
             roots[i].reason = result?.reason;
             roots[i].definitePlacements = result?.foundPlacements;
+            
+            //roots[i].singlePlacementCells
 
             do {
                 if (rootToCheck.parent && rootToCheck.parent.children.every(child => child.invalid)) {
@@ -1128,7 +1133,53 @@ let result = null;
 const MAX_ITERATIONS = 100;
 let iterations = 0;
 
+
+
+export const resetSolver = () => {
+    finalSolution = [];
+    invalidRoots = new Map();
+    done = false;
+    initialDominoPartCounts = null;
+    cellsToDirections = [];
+    dominoPartCounts = {
+        0: 0, 1: 0, 2: 0, 3: 0,
+        4: 0, 5: 0, 6: 0
+    };
+
+    dominoes = [];
+    board = [];
+    validCellsToDirections = new Map();
+    validIndices = new Set();
+    indicesToRegion = {};
+    regions = [];
+    oneDirectionFromDominoEliminationCells = new Set();
+    foundDominoes = [];
+
+    noRepeatPossibleDominoPlacements = null;
+
+    cellCoordinatesToIgnore = new Set();
+    updatedStructureOnce = false;
+    willBePlaced = new Set();
+
+    rowMin = 0;
+    colMin = 0;
+    rowMax = 0;
+    colMax = 0;
+    iterations = 0;
+    result = null;
+    solutionCount = 1;
+
+    // Reset the domino double tracking
+    for (const key of Object.keys(hasDouble)) {
+        hasDouble[key] = false;
+    }
+    resetVars();
+};
+
+
 export const solve = async () => {
+    resetSolver();
+
     const date = new Date(document.querySelector('#puzzle-date').value);
     const difficulty = document.querySelector('#puzzle-difficulty').value.toLowerCase();
 
@@ -1137,6 +1188,8 @@ export const solve = async () => {
     //         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/[IP_ADDRESS] Safari/537.36'
     //     }
     // });
+
+
     const allData = await fetch(`https://broad-rain-ab62.l-soroka333.workers.dev/?date=${date.toISOString().split('T')[0]}`);
 
     const json = await allData.json();
@@ -1147,10 +1200,11 @@ export const solve = async () => {
     const data = json[difficulty.toLowerCase()];
     dominoes = data.dominoes;
     board = data.regions;
+    
+
     getBoardCoords(board);
     updateRegionsAndDominoPartCounts();
     updateEqualsRegions();
-
 
     updateStructure();
 

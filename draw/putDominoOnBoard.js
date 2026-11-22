@@ -4,7 +4,24 @@ import { dominoMap, indicesToCellMap, createHalves } from './draw.js'
 import { getOtherIndex, UP, DOWN, LEFT, RIGHT } from '../explainer.js'
 import { pipCountToHtml, pipCountToHtmlFlipped } from '../pip-html.js';
 
+
 export const placedCells = new Set()
+export const placedCellsStack = [];
+
+function add(value) {
+    if (!placedCells.has(value)) {
+        placedCells.add(value);
+        placedCellsStack.push(value);
+    }
+}
+
+function pop() {
+    const value = placedCellsStack.pop();
+    placedCells.delete(value);
+    return value;
+}
+
+
 export const putDominoOnBoard = (dominoEntry, placementType = NORMAL) => {
 
     // if (dominoEntry?.domino) {
@@ -19,9 +36,9 @@ export const putDominoOnBoard = (dominoEntry, placementType = NORMAL) => {
         dominoElement.style.backgroundColor = 'grey';
         dominoElement.style.border = 'none';
         dominoElement.replaceChildren();
-        placedCells.add(dominoEntry.cell.join(','));
+        add(dominoEntry.cell.join(','));
         const otherIndex = getOtherIndex(dominoEntry.cell, dominoEntry.direction);
-        placedCells.add(otherIndex.join(','))
+        add(otherIndex.join(','))
     }
 
     const cell1 = indicesToCellMap.get(`${dominoEntry.cell[0]},${dominoEntry.cell[1]}`)
@@ -154,8 +171,10 @@ export const putDominoOnBoard = (dominoEntry, placementType = NORMAL) => {
 
 export const removeDomino = (numberToDelete) => {
     for (let i = 0; i < numberToDelete; ++i) {
-        const [cell1DominoHalf, cell2DominoHalf, dominoElement, domino] = addedDominoes.pop();
 
+        const [cell1DominoHalf, cell2DominoHalf, dominoElement, domino] = addedDominoes.pop();
+        // need to pop each half from the stack
+        pop(); pop();
         cell1DominoHalf.remove();
         cell2DominoHalf.remove();
         dominoElement.style.background = 'white';

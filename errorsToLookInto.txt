@@ -1,6 +1,6 @@
 Refactor:
 
-- Instead of pushing directly into finalSolution, make a function which automatically also pushes the correct singlePlacementCells
+- Instead of pushing directly into finalSolution, make a function which automatically also pushes the correct singlePlacementCells and then pushses into finalSolution
 
 - Modify updateRegionsAndDominoPartCounts so that it doens't call the getCombinations again after it has called it already once.
     - For this, you would also need adjustConditions to modify the minPipValues and the dominoPartCounts (or you could do this in updateCombinations which is called by adjustConditions)
@@ -12,7 +12,7 @@ Refactor:
 - make the satisfyconditions and then check thing (to check a domino placement at a cell in some particular direction) be a function that's reused. (Would this be hard to do?)
 - Add an add domino function which modifies the validCells, and the current conditions and regions pointers.
 
-- 
+- Use some kind of state variable for keeping track of variables like regions, indicesToRegion, etc.
 
 
 Features:
@@ -35,15 +35,22 @@ from the 9 region because that one would make the combination at 10 impossible.
 
 Errors/Problems: 
 
+Refix issue of back button not working properly when the last thing you added only updated structure but didn't add a domino.
 The altnerate paths are not using updateStructure... this is evident when it places something in an impossible position in such a path.
 
-The alternate paths are still erasing the placeholder cells.
+If you open the console and it takes up space, when you solve another puzzle, it messes up the position of the badges. Could this issue be related to scaling? (This issue isn't high prioirty though)
+
+Oct 30, 2026 Medium:
+When it tries the [2,2] placement in the image, it places [3, 5] in an "impossible" location.
+This happens because it gets to the (2,4) and the only valid direction is left so it deletes both (2,3) and (2,4)
+from validIndices. When it gets to (2,5), there are then no valid directions to place and it returns an invalid arrangement.
+
+To fix this, you would need to separate the logic for placing based on geometry with the logic that takes care of
+positions that have a placement because all other directions don't. COMPLICATED?
+
 
 Nov 13, 2026 Hard:
 Sol'n is too confusing; not explaining enough things.
-
-Nov 12, 2026 Hard:
-The updated structure isn't showing properly after placing [1,1]
 
 Nov. 15, 2026 Hard:
 In the image it is using the [6,6] domino in a position other than one of the two bottom corners
@@ -132,6 +139,14 @@ Nov 10, 2026 Hard, Oct. 18, 2026 Hard, Aug. 17 2026 Hard (The two circles puzzle
 
 
 Resolved:
+The alternate paths are still erasing the placeholder cells.
+
+Nov 12, 2026 Hard:
+The updated structure isn't showing properly after placing [1,1]
+The error here is that in the cellCoordinatesToIgnore contains [3,8] so it can't identify that that cell has only one direction which
+is then required to figure out the rest. Although it doesn't have [4,8] that one has two valid directions so this doesn't help.
+Resolved by resetting cellCoordinatesToIgnore after calling updateStructure when the results shouldn't be saved in lookAhead.
+
 Nov. 13, 2026 Hard:
 Clicking back after placing the third domino doesn't erase the placeholders that were added along with it (unless that was supposed to go with the previous domino???)
 Fixed by making the canOnlyBePlacedByOneArea rule push the singlePlacementCells
@@ -181,8 +196,7 @@ it adds a new domino since all roots are invalid, updateStructure uses an invali
 can only point right. WillBePlaced is no longer reset after calling the updateStrucutre before runRules in lookAhead
 (but I'm not sure if this is correct and I can't find when I originally implemented willBePlaced) 
 
-When it tries the [2,2] placement in the image, it places [3, 5] in an "impossible" location. But this is only because the right side has no dominoes
-so it thinks that this placement is the only one. I'm not even sure if this is really an error...
+
 
 Oct 21, 2026 Hard:
 I'm writing this like a week after making the change, but I added willBePlaced to solve an error of updateStructure not remembering the

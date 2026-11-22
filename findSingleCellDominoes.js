@@ -1,8 +1,13 @@
 import { indicesToRegion, regions, validCellsToDirections, dominoes, check, getOtherIndex, getOtherIndexString, adjustConditions, isOutOfBoundsOrFilled, foundDominoes, copyIndicesAndRegions, resetIndicesAndRegions, satisfiesRegionConditions } from "./explainer.js"
 
-export const dominoesPerCell = {};
+export let dominoesPerCell = {};
 
-const dominoCellPairToDirections = {};
+let dominoCellPairToDirections = {};
+
+export const resetVars = () => {
+    dominoesPerCell = {};
+    dominoCellPairToDirections = {};
+}
 
 export const findSingleCellDominoes = () => {
 

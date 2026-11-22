@@ -17,7 +17,18 @@ export const resetCurrentIndex = () => {
 export let lastSinglePlacementCells = new Map();
 
 let highlightedCell = null;
+let lastHighlightedRedCell = null;
 const highlightedCellsFromElimination = [];
+
+
+const drawHighlightedCellsAndStructure = (additionalCellsThatGiveStructure, oneDirectionFromDominoEliminationCells, singlePlacementCells) => {
+    if (additionalCellsThatGiveStructure)
+        highlightedCell = highlightCell(additionalCellsThatGiveStructure, null, 'orange');
+    for (const cell of oneDirectionFromDominoEliminationCells)
+        highlightedCellsFromElimination.push(highlightCell(cell.split(',').map(Number), null, 'purple'));
+    if (singlePlacementCells)
+        drawStructure(singlePlacementCells);
+}
 
 export const clickNext = async (direction) => {
     nextButton.removeEventListener('click', clickForward);
@@ -45,30 +56,17 @@ export const clickNext = async (direction) => {
     reasoningText.textContent = reasoning;
 
 
-    //if (singlePlacementCells && singlePlacementCells.length > 0 && (lastSinglePlacementCells.size === 0 || singlePlacementCells.some(([cell, direction]) => !lastSinglePlacementCells.has(cell)))) {
-    //if (singlePlacementCells && singlePlacementCells.length > 0 && (direction === BACKWARD || singlePlacementCells.some(([cell, direction]) => !lastSinglePlacementCells.has(cell)))) {
+
     if (direction === BACKWARD) {
-        if (currentIndex + 1 < finalSolution.length) {
-            const lastEntry = finalSolution[currentIndex + 1];
-            if (lastEntry?.dominoEntry?.cell) {
-                placedCells.delete(lastEntry.dominoEntry.cell.join(','));
-                const otherIndex = getOtherIndex(lastEntry.dominoEntry.cell, lastEntry.dominoEntry.direction);
-                placedCells.delete(otherIndex.join(','))
-            }
-        }
+        // going backward moves you back one entry in finalSolution. So if you moved back but the one in front
+        // which is really the current place you see visually didn't add any new dominoes, then don't delete the domino.
+        if(currentIndex+1 < finalSolution.length && finalSolution[currentIndex + 1].dominoEntry)
+            removeDomino(1);
     }
+    else if(dominoEntry)
+        putDominoOnBoard(dominoEntry);
 
-    if (singlePlacementCells && singlePlacementCells.length > 0) {
-        if (additionalCellsThatGiveStructure)
-            highlightedCell = highlightCell(additionalCellsThatGiveStructure, null, 'orange');
-        for (const cell of oneDirectionFromDominoEliminationCells)
-            highlightedCellsFromElimination.push(highlightCell(cell.split(',').map(Number), null, 'purple'));
-        drawStructure(singlePlacementCells);
-        // for (const [cell, entry] of singlePlacementCells) {
-        //     lastSinglePlacementCells.set(cell, entry);
-        // }
-    }
-
+    drawHighlightedCellsAndStructure(additionalCellsThatGiveStructure, oneDirectionFromDominoEliminationCells, singlePlacementCells);
 
     if (dominoEntry) {
         if (lastHighlightedCurrent)
@@ -81,13 +79,13 @@ export const clickNext = async (direction) => {
         return;
     }
 
-    if (direction === BACKWARD) {
-        // what if on the last move, you only altered the structure but didn't remove any dominoes?
-        // then you would have already exited the function by now.
-        removeDomino(1);
-    }
-    else
-        putDominoOnBoard(dominoEntry);
+    // if (direction === BACKWARD) {
+    //     // what if on the last move, you only altered the structure but didn't remove any dominoes?
+    //     // then you would have already exited the function by now.
+    //     removeDomino(1);
+    // }
+    // else
+    //     putDominoOnBoard(dominoEntry);
 
     // if (finalSolution.length === 0) {
     //     controls.replaceChildren();
@@ -111,6 +109,8 @@ export const clickNext = async (direction) => {
             for (const [index, child] of root.children.entries()) {
                 if (shouldExit)
                     return;
+                unhighlightCell(lastHighlightedRedCell);
+                subReasoningText.textContent = '';
                 if (firstCall) {
                     shouldExit = await waitForNextClick();
                     if (shouldExit) {
@@ -121,12 +121,12 @@ export const clickNext = async (direction) => {
                         return;
                     }
                     // remove the correct domino and add the first invalid one in its place.
-                    removeDomino(1);
                     // (it will be added by the proceeding code)
+
+                    removeDomino(1);
                     firstCall = false;
                 }
                 let definitePlacementsCount = 0;
-                subReasoningText.textContent = '';
                 putDominoOnBoard(child.value, INCORRECT);
 
                 for (const placement of child.definitePlacements ?? []) {
@@ -145,32 +145,37 @@ export const clickNext = async (direction) => {
                     subReasoningText.textContent = child.reason;
                 }
                 if (child?.cells) {
-                    let lastHighlightedCell;
                     for (const cell of child.cells) {
-                        lastHighlightedCell = highlightCell(cell, null, 'red');
+                        lastHighlightedRedCell = highlightCell(cell, null, 'red');
                     }
-                    unhighlightCell(lastHighlightedCell);
-                    subReasoningText.textContent = '';
                 }
 
                 shouldExit = await waitForNextClick();
                 if (shouldExit) {
-                    // after calling clickNext it places the current? domimo only to have it immediately removed from the call right after dfs here.
-                    // nextButton.addEventListener('click', clickForward);
-                    // backButton.addEventListener('click', clickBackward);
+
+                    unhighlightCell(lastHighlightedRedCell);
+
+                    subReasoningText.textContent = '';
                     removeDomino(definitePlacementsCount + 1)
                     return;
                 }
                 await dfs(child);
                 removeDomino(definitePlacementsCount + 1)
+                unhighlightCell(lastHighlightedRedCell);
+                subReasoningText.textContent = '';
                 // but what if you should remove the non-definite placement before that as its the last one?
             }
         }
         const pseudoRoot = { children: invalidRoots[JSON.stringify(dominoEntry.cell)] };
         await dfs(pseudoRoot);
         // if you go through any of the alternate paths, then the original domino will have to be added back
-        if (!exitedImmediately)
+        if (!exitedImmediately) {
             putDominoOnBoard(dominoEntry);
+            // also add back any of the deleted placeholder dominoes.
+
+            // need to pop out all placedCells that are removed.
+            drawHighlightedCellsAndStructure(additionalCellsThatGiveStructure, oneDirectionFromDominoEliminationCells, singlePlacementCells)
+        }
         // if not, then click next (but don't add the listeners back already or you will click twice) 
         else {
             clickNext(lastDirection)
