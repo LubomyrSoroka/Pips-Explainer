@@ -40,7 +40,7 @@ export const clickNext = async (direction) => {
         unhighlightCell(cell);
 
     currentIndex += direction;
-    const { dominoEntry = undefined, reasoning = undefined, singlePlacementCells = new Map(), additionalCellsThatGiveStructure = undefined, oneDirectionFromDominoEliminationCells = new Set() } = finalSolution[currentIndex !== -1 ? currentIndex : 0];
+    const { dominoEntry = undefined, reasoning = undefined, singlePlacementCells = [], additionalCellsThatGiveStructure = undefined, oneDirectionFromDominoEliminationCells = new Set() } = finalSolution[currentIndex !== -1 ? currentIndex : 0];
 
 
     if (currentIndex === -1)
@@ -128,8 +128,10 @@ export const clickNext = async (direction) => {
                 }
                 let definitePlacementsCount = 0;
                 putDominoOnBoard(child.value, INCORRECT);
+                drawHighlightedCellsAndStructure(null, [], child.singlePlacementCells)
 
-                for (const placement of child.definitePlacements ?? []) {
+                for (const [index, placement] of (child.definitePlacements ?? []).entries()) {
+                //for (const placement of child.definitePlacements ?? []) {
                     shouldExit = await waitForNextClick();
                     if (shouldExit) {
                         // nextButton.addEventListener('click', clickForward);
@@ -139,6 +141,9 @@ export const clickNext = async (direction) => {
                     }
                     ++definitePlacementsCount;
                     putDominoOnBoard(placement, FOLLOWINGPLACEMENT);
+
+                    // retrieve the single placement cells from child.pastSinglePlacementCells
+                    drawHighlightedCellsAndStructure(null, [], child?.pastSinglePlacementCells ? child?.pastSinglePlacementCells[index] : null);
                 }
                 // is it possible to have a reason but no cells to highlight?
                 if (child?.reason) {
