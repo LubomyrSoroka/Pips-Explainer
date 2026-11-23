@@ -550,6 +550,8 @@ const reasoningOnlyOneDomino = "Added domino in this position through because it
 export let foundDominoes = [];
 const rule_canOnlyBePlacedByOneDomino = (dominoes, silenced = false) => {
     const dominoToPlacements = [];
+
+    let pastSinglePlacementCells = [];
     let foundAreasAndDominoes = [];
     let possibleDominoPlacementsSmallest = [];
     let possibleDominoPlacementsCurrent = [];
@@ -558,6 +560,8 @@ const rule_canOnlyBePlacedByOneDomino = (dominoes, silenced = false) => {
     const originalRegionsPointer = regions;
     const originalValidCellsToDirectionsValue = new Map(validCellsToDirections);
     let minPossiblePlacementsCount = Infinity;
+
+    const savedDominoEntries = [];
 
     nextCell: for (const [i, j] of Array.from(validCellsToDirections.keys()).map(key => key.split(',').map(Number))) {
         // this should check that you aren't placing the domino on a cell that already has a domino on it (not really checking that you're placing something out of bounds) 
@@ -624,6 +628,10 @@ const rule_canOnlyBePlacedByOneDomino = (dominoes, silenced = false) => {
             }
         }
 
+        // To have it so that nothing is added to the final solution in case there currently exists a square which has 
+        // no possibilites, we can remember the cells that have only one validCount and only add them after we've determined
+        // that no invalid squares exist.
+
         // if you got here, then you didn't skip to the next cell in the grid because of too many possiblities.
         if (validCount !== 1 && validCount < minPossiblePlacementsCount) {
             minPossiblePlacementsCount = validCount;
@@ -635,6 +643,14 @@ const rule_canOnlyBePlacedByOneDomino = (dominoes, silenced = false) => {
         // then if you have a domino which equals that sum any side you flip it is equivalent
         // more generally, if there is only one placement somewhere and it's in a sum, then flipping the domino won't do anything.
         if (validCount === 1) {
+            const dominoEntry = {
+                cell: [i, j],
+                domino: validDomino,
+                direction: validDirection,
+                flipped: validFlipped
+            }
+            savedDominoEntries.push(dominoEntry)
+
             indicesToRegion = originalConditionsPointer;
             regions = originalRegionsPointer;
             let otherIndices = getOtherIndex([i, j], validDirection);
@@ -646,19 +662,13 @@ const rule_canOnlyBePlacedByOneDomino = (dominoes, silenced = false) => {
             validIndices.delete(`${otherIndices[0]},${otherIndices[1]}`);
 
             updateStructure(silenced);
-            const dominoEntry = {
-                cell: [i, j],
-                domino: validDomino,
-                direction: validDirection,
-                flipped: validFlipped
-            }
+            const singlePlacementCells = Array.from(validCellsToDirections).filter(([cell, directions]) => directions.length === 1);
             if (!silenced) {
-                const singlePlacementCells = Array.from(validCellsToDirections).filter(([cell, directions]) => directions.length === 1);
                 finalSolution.push({ dominoEntry, reasoning: reasoningOnlyOneDomino, singlePlacementCells, additionalCellsThatGiveStructure: null, oneDirectionFromDominoEliminationCells });
                 updateDominoesPerCell(validDomino, [[i, j], otherIndices], indicesToRegion, regions);
-
             }
 
+            pastSinglePlacementCells.push(singlePlacementCells);
             foundAreasAndDominoes.push(dominoEntry);
             foundDominoes.push(validDomino);
         }
@@ -668,15 +678,35 @@ const rule_canOnlyBePlacedByOneDomino = (dominoes, silenced = false) => {
             indicesToRegion = originalConditionsPointer;
             regions = originalRegionsPointer;
             validCellsToDirections = originalValidCellsToDirectionsValue;
-
             return { type: INVALID_ARRANGEMENT, cells: [[i, j]], reason: `No domino can fit in this cell`, lastPlacements: foundAreasAndDominoes };
         }
     }
 
-
     indicesToRegion = originalConditionsPointer;
     regions = originalRegionsPointer;
-    //validCellsToDirections = originalValidCellsToDirections;
+    // validCellsToDirections = originalValidCellsToDirectionsValue;
+
+    // but this isn't the same as what it was doing before because when it loops through the dominoes, it checks if 
+    // the domino has been used before... 
+
+    // for(const savedDominoEntry of savedDominoEntries){
+    //     const [i, j] = savedDominoEntry.cell;
+    //     let otherIndices = getOtherIndex([i, j], savedDominoEntry.direction);
+    //     let [index1, index2] = savedDominoEntry.flipped ? [1, 0] : [0, 1];
+    //     adjustConditions([{ cell: [i, j], value: savedDominoEntry.domino[index1] }, { cell: otherIndices, value: savedDominoEntry.domino[index2] }]);
+    //     // this value is used for checking if something is out of bounds.
+    //     // but it is also used to check if a domino collides with another one.
+    //     validIndices.delete(`${i},${j}`);
+    //     validIndices.delete(`${otherIndices[0]},${otherIndices[1]}`);
+    //     updateStructure(silenced);
+    //     if (!silenced) {
+    //         const singlePlacementCells = Array.from(validCellsToDirections).filter(([cell, directions]) => directions.length === 1);
+    //         finalSolution.push({ dominoEntry: savedDominoEntry, reasoning: reasoningOnlyOneDomino, singlePlacementCells, additionalCellsThatGiveStructure: null, oneDirectionFromDominoEliminationCells });
+    //         updateDominoesPerCell(savedDominoEntry.domino, [[i, j], otherIndices], indicesToRegion, regions);
+    //     }
+    //     foundAreasAndDominoes.push(savedDominoEntry);
+    //     foundDominoes.push(savedDominoEntry.domino);
+    // }
 
     if (foundAreasAndDominoes.length === 0) {
         // only call the findOneArea rule if you didn't manage to find anything from the oneDomino rule
@@ -690,7 +720,7 @@ const rule_canOnlyBePlacedByOneDomino = (dominoes, silenced = false) => {
     indicesToRegion = originalConditionsPointer;
     regions = originalRegionsPointer;
 
-    return { foundPlacements: foundAreasAndDominoes, possiblePlacements: possibleDominoPlacementsSmallest };
+    return { foundPlacements: foundAreasAndDominoes, possiblePlacements: possibleDominoPlacementsSmallest, pastSinglePlacementCells };
 }
 
 
@@ -769,24 +799,24 @@ const lookAhead = (leastOptionsPlacement) => {
         const originalWillBePlaced = new Set(willBePlaced);
         updateStructure(true);
 
+        roots[i].singlePlacementCells = Array.from(validCellsToDirections).filter(([cell, directions]) => directions.length === 1);
         // often, this just adds the same thing to both sides of the tree (since either placement results in the same next placement with min possiblities)
         // I think I could optimize this...
 
         let result = runRules(true) // if any of the rules fail, then this option must not be possible
+
+        roots[i].pastSinglePlacementCells = result?.pastSinglePlacementCells;
 
         // I'm resetting some of the values here and some of them elsewhere...
         willBePlaced = originalWillBePlaced;
         cellCoordinatesToIgnore = originalCellCoordinatesToIgnore;
         if (result?.type === INVALID_ARRANGEMENT) {
 
-
-            roots[i].invalid = true;
             let rootToCheck = roots[i];
+            roots[i].invalid = true;
             roots[i].cells = result?.cells;
             roots[i].reason = result?.reason;
             roots[i].definitePlacements = result?.foundPlacements;
-            
-            //roots[i].singlePlacementCells
 
             do {
                 if (rootToCheck.parent && rootToCheck.parent.children.every(child => child.invalid)) {
@@ -794,6 +824,7 @@ const lookAhead = (leastOptionsPlacement) => {
                 }
                 rootToCheck = rootToCheck.parent;
             } while (rootToCheck?.invalid);
+
 
             // if it has no parent (i.e, it is a root node)
             let invalidRootCount = 0;
@@ -1080,8 +1111,10 @@ const runRules = (silenced = false) => {
 
 const runUntilNoDefinitePlacements = (silenced) => {
 
+
     let result = null;
     const allFoundPlacements = [];
+    const allSinglePlacementCells = [];
     do {
         result = rule_canOnlyBePlacedByOneDomino(dominoes, silenced);
         if (result?.type === INVALID_ARRANGEMENT)
@@ -1106,11 +1139,13 @@ const runUntilNoDefinitePlacements = (silenced) => {
         //         ++index;
         // }
         // if all the possible placements were deleted, then is that case considered?
+
         allFoundPlacements.push(...result.foundPlacements);
+        allSinglePlacementCells.push(...result.pastSinglePlacementCells);
 
     } while (result.foundPlacements.length > 0 && canPlaceDomino());
-
     allFoundPlacements.push(...(result.lastPlacements || []));
+    result.pastSinglePlacementCells = allSinglePlacementCells;
 
     result.foundPlacements = allFoundPlacements;
     return result;

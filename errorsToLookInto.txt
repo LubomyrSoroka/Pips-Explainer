@@ -35,10 +35,20 @@ from the 9 region because that one would make the combination at 10 impossible.
 
 Errors/Problems: 
 
-Refix issue of back button not working properly when the last thing you added only updated structure but didn't add a domino.
-The altnerate paths are not using updateStructure... this is evident when it places something in an impossible position in such a path.
+Show the placeholder dominoes from the implied placements in the alternate paths. To do this, return an array of the foundPlacements after each placement? (done?)
+
+Show the purple and yellow highlighted cells from the alternate paths (including the implied placements on the altenrate paths)
+
+Show highlight around which square the red implied dominoes are placed. Explain whether they are placed using the oneDomino or oneArea rule
+Fix issue of original border going away from regions/cages.
+Placeholder cells disappearing on guesses. (e.g., check Nov. 23, 2026 Medium)
+Fix errors of back on first entry and forward on last.
+Rearrange next and back buttons.
+Don't await solve in getPuzzle so that you can see the puzzle immediately. show a load icon if the next entry isn't available yet.
+
 
 If you open the console and it takes up space, when you solve another puzzle, it messes up the position of the badges. Could this issue be related to scaling? (This issue isn't high prioirty though)
+** this is more serious: if you switch from Nov 15, 2026 hard to Nov 12, 2026 hard (as one example) it messes up the position of the badges. Console was never opened.
 
 Oct 30, 2026 Medium:
 When it tries the [2,2] placement in the image, it places [3, 5] in an "impossible" location.
@@ -48,9 +58,6 @@ from validIndices. When it gets to (2,5), there are then no valid directions to 
 To fix this, you would need to separate the logic for placing based on geometry with the logic that takes care of
 positions that have a placement because all other directions don't. COMPLICATED?
 
-
-Nov 13, 2026 Hard:
-Sol'n is too confusing; not explaining enough things.
 
 Nov. 15, 2026 Hard:
 In the image it is using the [6,6] domino in a position other than one of the two bottom corners
@@ -80,7 +87,6 @@ There's a very large region with a high sum and this is going to make it extreme
 
 
 Improvements:
-
 Nov 18, 2026 Medium:
 It guesses the placement of [1,2], and [0,0] and [0,2]. Yet when you look at all solutions on the Pips Solver that someone made,
 all solutions will place those dominoes in the same place [1,2] can be flipped and the others have two symetrical placements.
@@ -139,6 +145,10 @@ Nov 10, 2026 Hard, Oct. 18, 2026 Hard, Aug. 17 2026 Hard (The two circles puzzle
 
 
 Resolved:
+
+Refix issue of back button not working properly when the last thing you added only updated structure but didn't add a domino.
+The altnerate paths are not using updateStructure... this is evident when it places something in an impossible position in such a path.
+
 The alternate paths are still erasing the placeholder cells.
 
 Nov 12, 2026 Hard:
