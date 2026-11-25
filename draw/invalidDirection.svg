@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="64" height="64" viewBox="0 0 64 64"
+     fill="none">
+  <!-- Arrow -->
+  <path d="M8 32 H52 M38 18 L52 32 L38 46"
+        stroke="currentColor"
+        stroke-width="4"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
+
+  <!-- Cross -->
+  <path d="M22 10 L42 54"
+        stroke="red"
+        stroke-width="4"
+        stroke-linecap="round"/>
+</svg>

@@ -378,6 +378,7 @@ export const updateStructure = (silenced = false) => {
                 let otherIndex = null;
                 const otherIndices = [];
                 const validDirections = [];
+                
                 let validOtherIndex = null;
                 let hasInvalidatedDirectionFromDominoes = false;
 
@@ -425,7 +426,8 @@ export const updateStructure = (silenced = false) => {
                     hasOneDirectionCell = true;
                     cellCoordinatesToIgnore.add(`${validOtherIndex[0]},${validOtherIndex[1]}`);
                     if (hasInvalidatedDirectionFromDominoes) {
-                        oneDirectionFromDominoEliminationCells.add(`${i},${j}`)
+                        //oneDirectionFromDominoEliminationCells.add(`${i},${j}`)
+                        oneDirectionFromDominoEliminationCells.add(JSON.stringify({cell: [i,j], direction: validDirections[0]}))
                     }
                 }
                 else if (validDirections.length === 0) {
