@@ -1,4 +1,4 @@
-import { indicesToRegion, regions, validCellsToDirections, dominoes, check, getOtherIndex, getOtherIndexString, adjustConditions, isOutOfBoundsOrFilled, foundDominoes, copyIndicesAndRegions, resetIndicesAndRegions, satisfiesRegionConditions } from "./explainer.js"
+import { indicesToRegion, regions, validCellsToDirections, noRepeatPossibleDominoPlacements, dominoes, check, getOtherIndex, getOtherIndexString, adjustConditions, isOutOfBoundsOrFilled, foundDominoes, copyIndicesAndRegions, resetIndicesAndRegions, satisfiesRegionConditions, INVALID_ARRANGEMENT } from "./explainer.js"
 
 export let dominoesPerCell = {};
 
@@ -8,17 +8,19 @@ export const resetVars = () => {
     dominoesPerCell = {};
     dominoCellPairToDirections = {};
 }
+const dominoesPerCellNoRepeats = {};
 
 export const findSingleCellDominoes = () => {
 
     const originalConditionsPointer = indicesToRegion;
     const originalRegionsPointer = regions;
 
+    //const cellsToCheck = Array.from(validCellsToDirections.keys()).map(key => key.split(',').map(Number));
     const cellsToCheck = Array.from(validCellsToDirections.keys()).map(key => key.split(',').map(Number));
     nextCell: for (const [i, j] of cellsToCheck) {
 
         // this should check that you aren't placing the domino on a cell that already has a domino on it (not really checking that you're placing something out of bounds) 
-        if (!validCellsToDirections.get(`${i},${j}`) || isOutOfBoundsOrFilled(i, j)) {
+        if (isOutOfBoundsOrFilled(i, j)) {
             continue;
         }
 
@@ -51,8 +53,12 @@ export const findSingleCellDominoes = () => {
                     if (result === true) {
                         dominoesPerCell[`${i},${j}`] ??= new Set()
                         dominoesPerCell[`${i},${j}`].add(domino);
-                        dominoCellPairToDirections[`${i},${j}` + `${domino[0]},${domino[1]}`] ??= new Set();
-                        dominoCellPairToDirections[`${i},${j}` + `${domino[0]},${domino[1]}`].add(direction);
+                        if(noRepeatPossibleDominoPlacements.has(`${i},${j}`)){
+                            dominoesPerCellNoRepeats[`${i},${j}`] ??= new Set()
+                            dominoesPerCellNoRepeats[`${i},${j}`].add(domino);
+                        }
+                        // dominoCellPairToDirections[`${i},${j}` + `${domino[0]},${domino[1]}`] ??= new Set();
+                        // dominoCellPairToDirections[`${i},${j}` + `${domino[0]},${domino[1]}`].add(direction);
 
                     }
 
@@ -60,14 +66,15 @@ export const findSingleCellDominoes = () => {
             }
         }
     }
-    resetIndicesAndRegions(originalConditionsPointer, originalRegionsPointer)
+    resetIndicesAndRegions(originalConditionsPointer, originalRegionsPointer);
     findMustBePlacedDominoes();
 
 }
 
 const findMustBePlacedDominoes = () => {
+    // isn't this just equivalent to the above function but for sets of size one?
     let i = 0;
-    const dominoSets = Object.entries(dominoesPerCell);
+    const dominoSets = Object.entries(dominoesPerCellNoRepeats);
     while (i < dominoSets.length) {
         const [coords, dominoSet] = dominoSets[i];
         if (dominoSet.size === 1) {
@@ -78,13 +85,15 @@ const findMustBePlacedDominoes = () => {
                 // if the other cell from which this otherDominoSet comes from happens to 
                 // be a cell where this cell and the original cell of the outer loop dominoSet is a valid placement for the domino, then
                 // don't delete the domino from the other set.
-                const directions = dominoCellPairToDirections[coords + `${onlyValue[0]},${onlyValue[1]}`];
-                for (const direction of directions) {
-                    const otherCoordsFromOriginal = getOtherIndexString(coords, direction)
-                    if (otherCoords === `${otherCoordsFromOriginal[0]},${otherCoordsFromOriginal[1]}`)
-                        continue nextDominoSet;
+                
+                // I'm looking back at this comment and I believe that this is to prevent the other cell from having 0 possible placements?
+                // const directions = dominoCellPairToDirections[coords + `${onlyValue[0]},${onlyValue[1]}`];
+                // for (const direction of directions) {
+                //     const otherCoordsFromOriginal = getOtherIndexString(coords, direction)
+                //     if (otherCoords === `${otherCoordsFromOriginal[0]},${otherCoordsFromOriginal[1]}`)
+                //         continue nextDominoSet;
+                // }
 
-                }
                 const deleted = otherDominoSet.delete(onlyValue)
                 if (deleted && otherDominoSet.size === 1)
                     i = -1;
@@ -152,12 +161,59 @@ const getSurroundingCells = (cell1, cell2) => {
     return surroundingCells;
 }
 
+// search through all dominoSets. If there n areas which have the exact same n dominoes, then you can remove those dominoes from other regions.
+// if n areas all have the exact same dominoes but there are fewer than n dominoes in each one, then you have an invalid configuration.
+const setsEqual = (setA, setB) => setA.size === setB.size && setA.isSubsetOf(setB);
+
+const dominoSetsToDelete = [];
+
+const getEquivalentSets = () => {
+    const dominoSets = Object.entries(dominoesPerCell);
+    //const filteredSets = dominoSets.filter(( [coords, dominoSet] ) => dominoSet.size > 1);
+    let deletedValue = false;
+    do{
+        deletedValue = false;
+        for(const [coords, set] of dominoSets){
+            let equalCount = 0;
+            for(const [coords2, set2] of dominoSets){
+                if(set2 === set)
+                    continue;
+                if(setsEqual(set, set2)){
+                    ++equalCount;
+                }
+                // should you instead check if the equalCount is twice the size of the set?
+                // what happens if the cell across has the same dominoes just in the opposite direction?
+                // could counting the dominoPlacements using the noRepeatDominoPlacements array fix this?
+                if(equalCount > set.size)
+                    return {type: INVALID_ARRANGEMENT};
+            }
+            if(equalCount === set.size){
+                dominoSetsToDelete.push(set);
+            }
+        }
+        // delete the dominoes from these sets from all other sets.
+        for(const [coords, set] of dominoSets) {
+            for(const setToDelete of dominoSetsToDelete){
+                if(!setsEqual(set, setToDelete)){
+
+                    // const directions = dominoCellPairToDirections[coords + `${onlyValue[0]},${onlyValue[1]}`];
+                    // for (const direction of directions) {
+                    //     const otherCoordsFromOriginal = getOtherIndexString(coords, direction)
+                    //     if (otherCoords === `${otherCoordsFromOriginal[0]},${otherCoordsFromOriginal[1]}`)
+                    //         continue nextDominoSet;
+                    // }
+                    set = set.difference(setToDelete);
+                    deletedValue = true;
+                }
+            }
+        }
+    }
+    while(deletedValue)
+}
 
 export const updateDominoesPerCell = (placedDomino, [cell1, cell2], originalConditionsPointer, originalRegionsPointer) => {
     // is this thing necessary? Couldn't you just always run findMustBePlacedDominoes?
     let runUpdate = false;
-
-    // this doesn't delete the possibilites from the actual physical blocking of placing the domino.
 
     const surroundingCells = getSurroundingCells(cell1, cell2);
     for (const cell of surroundingCells) {
@@ -172,10 +228,11 @@ export const updateDominoesPerCell = (placedDomino, [cell1, cell2], originalCond
 
         const newSetLength = dominoesPerCell[cellString].size;
         if (newSetLength < oldSet.size && newSetLength === 1)
+        // don't check if size is 1 anymore because getEquivalentSets could discover something.
+        // if (newSetLength < oldSet.size)
             runUpdate = true;
 
     }
-
     for (const [coords, dominoSet] of Object.entries(dominoesPerCell)) {
         if (coords === cell1.join(',') || coords === cell2.join(',')) {
             dominoSet.clear();
@@ -183,6 +240,7 @@ export const updateDominoesPerCell = (placedDomino, [cell1, cell2], originalCond
         }
         const deleted = dominoSet.delete(placedDomino)
         if (deleted && dominoSet.size === 1)
+        //if (deleted)
             runUpdate = true;
     }
     if (runUpdate)
