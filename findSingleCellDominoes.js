@@ -15,7 +15,6 @@ export const findSingleCellDominoes = () => {
     const originalConditionsPointer = indicesToRegion;
     const originalRegionsPointer = regions;
 
-    //const cellsToCheck = Array.from(validCellsToDirections.keys()).map(key => key.split(',').map(Number));
     const cellsToCheck = Array.from(validCellsToDirections.keys()).map(key => key.split(',').map(Number));
     nextCell: for (const [i, j] of cellsToCheck) {
 
@@ -57,8 +56,8 @@ export const findSingleCellDominoes = () => {
                             dominoesPerCellNoRepeats[`${i},${j}`] ??= new Set()
                             dominoesPerCellNoRepeats[`${i},${j}`].add(domino);
                         }
-                        // dominoCellPairToDirections[`${i},${j}` + `${domino[0]},${domino[1]}`] ??= new Set();
-                        // dominoCellPairToDirections[`${i},${j}` + `${domino[0]},${domino[1]}`].add(direction);
+                        dominoCellPairToDirections[`${i},${j}` + `${domino[0]},${domino[1]}`] ??= new Set();
+                        dominoCellPairToDirections[`${i},${j}` + `${domino[0]},${domino[1]}`].add(direction);
 
                     }
 
@@ -67,7 +66,8 @@ export const findSingleCellDominoes = () => {
         }
     }
     resetIndicesAndRegions(originalConditionsPointer, originalRegionsPointer);
-    findMustBePlacedDominoes();
+    //findMustBePlacedDominoes();
+    getEquivalentSets();
 
 }
 
@@ -170,6 +170,7 @@ const dominoSetsToDelete = [];
 const getEquivalentSets = () => {
     const dominoSets = Object.entries(dominoesPerCell);
     //const filteredSets = dominoSets.filter(( [coords, dominoSet] ) => dominoSet.size > 1);
+
     let deletedValue = false;
     do{
         deletedValue = false;
@@ -192,7 +193,8 @@ const getEquivalentSets = () => {
             }
         }
         // delete the dominoes from these sets from all other sets.
-        for(const [coords, set] of dominoSets) {
+
+        for(let [coords, set] of dominoSets) {
             for(const setToDelete of dominoSetsToDelete){
                 if(!setsEqual(set, setToDelete)){
 
@@ -203,6 +205,7 @@ const getEquivalentSets = () => {
                     //         continue nextDominoSet;
                     // }
                     set = set.difference(setToDelete);
+
                     deletedValue = true;
                 }
             }
@@ -227,9 +230,9 @@ export const updateDominoesPerCell = (placedDomino, [cell1, cell2], originalCond
         getDominoes(cell[0], cell[1], oldSet, originalConditionsPointer, originalRegionsPointer);
 
         const newSetLength = dominoesPerCell[cellString].size;
-        if (newSetLength < oldSet.size && newSetLength === 1)
+        //if (newSetLength < oldSet.size && newSetLength === 1)
         // don't check if size is 1 anymore because getEquivalentSets could discover something.
-        // if (newSetLength < oldSet.size)
+        if (newSetLength < oldSet.size)
             runUpdate = true;
 
     }
@@ -239,10 +242,11 @@ export const updateDominoesPerCell = (placedDomino, [cell1, cell2], originalCond
             continue;
         }
         const deleted = dominoSet.delete(placedDomino)
-        if (deleted && dominoSet.size === 1)
-        //if (deleted)
+        //if (deleted && dominoSet.size === 1)
+        if (deleted)
             runUpdate = true;
     }
     if (runUpdate)
-        findMustBePlacedDominoes()
+        //findMustBePlacedDominoes()
+        getEquivalentSets();
 }
