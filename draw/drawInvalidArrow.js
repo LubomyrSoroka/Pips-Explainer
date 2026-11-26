@@ -9,6 +9,12 @@ export const drawArrow = (cell, directions = null) => {
 
 
     for(const direction of directions){
+        const wrapper = document.createElement('div');
+        const arrowDimension = '32px'
+
+        wrapper.style.position = 'absolute';
+        wrapper.style.width = arrowDimension;
+        wrapper.style.height = arrowDimension;
         const arrowsvg = document.createElementNS(
             'http://www.w3.org/2000/svg',
             'svg'
@@ -27,41 +33,44 @@ export const drawArrow = (cell, directions = null) => {
                     stroke-linecap="round"/>
             </svg>
         `;
+        arrowsvg.setAttribute('viewBox', '0 0 64 64');
 
-        arrowsvg.style.height = '16px';
-        arrowsvg.style.width = '16px';
-        arrowsvg.style.position = 'absolute';
+        arrowsvg.style.height = arrowDimension;
+        arrowsvg.style.width = arrowDimension;
         arrowsvg.style.zIndex = '10';
-        arrowsvg.transformOrigin = 'center';
+
+        wrapper.appendChild(arrowsvg);
         switch (direction) {
 
             case DOWN:
-                arrowsvg.style.left = '50%';
-                arrowsvg.style.bottom = 0;
-                arrowsvg.style.transform = "rotate (90deg) translateX(-50%)";
+                arrowsvg.style.transform = "rotate(90deg)";
+                wrapper.style.left = '50%';
+                wrapper.style.bottom = 0;
+                wrapper.style.transform = "translateX(-50%)";
                 break;
 
             case UP:
-                arrowsvg.style.left = '50%';
-                arrowsvg.style.top = 0;
-                arrowsvg.style.transform= "rotate(-90deg) translateX(-50%)";
+                arrowsvg.style.transform = "rotate(-90deg)";
+                wrapper.style.left = '50%';
+                wrapper.style.top = 0;
+                wrapper.style.transform= "translateX(-50%)";
                 break;
 
             case RIGHT:
-                arrowsvg.style.top = '50%'; 
-                arrowsvg.style.right = 0;
-                arrowsvg.style.transform= "translateY(-50%)";
+                wrapper.style.top = '50%'; 
+                wrapper.style.right = 0;
+                wrapper.style.transform= "translateY(-50%)";
                 break;
             case LEFT:
-                arrowsvg.style.top = '50%';
-                arrowsvg.style.left = 0;
-                arrowsvg.style.transform= "rotate(180deg) translateY(-50%)";
+                arrowsvg.style.transform = "rotate(180deg)";
+                wrapper.style.top = '50%';
+                wrapper.style.left = 0;
+                wrapper.style.transform= "rotate(180deg) translateY(-50%)";
                 break;
         }
-
         cellElement.style.position = 'relative';
 
-        cellElement.appendChild(arrowsvg);
+        cellElement.appendChild(wrapper);
     }
 }
 

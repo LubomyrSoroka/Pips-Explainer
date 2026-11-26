@@ -37,7 +37,6 @@ from the 9 region because that one would make the combination at 10 impossible.
 
 Errors/Problems: 
 
-Show the placeholder dominoes from the implied placements in the alternate paths. To do this, return an array of the foundPlacements after each placement? (done?)
 
 Show the purple and yellow highlighted cells from the alternate paths (including the implied placements on the altenrate paths)
 
@@ -147,6 +146,8 @@ Nov 10, 2026 Hard, Oct. 18, 2026 Hard, Aug. 17 2026 Hard (The two circles puzzle
 
 
 Resolved:
+
+Show the placeholder dominoes from the implied placements in the alternate paths. To do this, return an array of the foundPlacements after each placement? (done?)
 
 Refix issue of back button not working properly when the last thing you added only updated structure but didn't add a domino.
 The altnerate paths are not using updateStructure... this is evident when it places something in an impossible position in such a path.
