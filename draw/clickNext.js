@@ -5,6 +5,7 @@ import { drawStructure } from "./drawStructure.js";
 import { invalidRoots, finalSolution, getOtherIndex } from "../explainer.js"
 import { putDominoOnBoard, removeDomino } from './putDominoOnBoard.js';
 import { placedCells } from './putDominoOnBoard.js';
+import {drawArrow} from './drawInvalidArrow.js';
 
 let lastHighlightedCurrent = null;
 let currentIndex = -1;
@@ -24,10 +25,13 @@ const highlightedCellsFromElimination = [];
 const drawHighlightedCellsAndStructure = (additionalCellsThatGiveStructure, oneDirectionFromDominoEliminationCells, singlePlacementCells) => {
     if (additionalCellsThatGiveStructure)
         highlightedCell = highlightCell(additionalCellsThatGiveStructure, null, 'orange');
-    for (const cell of oneDirectionFromDominoEliminationCells)
-        highlightedCellsFromElimination.push(highlightCell(cell.split(',').map(Number), null, 'purple'));
+    //     highlightedCellsFromElimination.push(highlightCell(cell.split(',').map(Number), null, 'purple'));
     if (singlePlacementCells)
         drawStructure(singlePlacementCells);
+    for (const json of oneDirectionFromDominoEliminationCells){
+        const {cell, directions} = JSON.parse(json);
+        drawArrow(cell, directions);
+    }
 }
 
 export const clickNext = async (direction) => {

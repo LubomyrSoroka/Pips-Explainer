@@ -14,6 +14,8 @@ Refactor:
 
 - Use some kind of state variable for keeping track of variables like regions, indicesToRegion, etc.
 
+- turn oneDirectionFromDominoEliminationCells into an array from a Set.
+
 
 Features:
 Use simplest rules first before trying more complicated stuff. Here is one way to do this:

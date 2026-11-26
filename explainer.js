@@ -382,12 +382,15 @@ export const updateStructure = (silenced = false) => {
                 let validOtherIndex = null;
                 let hasInvalidatedDirectionFromDominoes = false;
 
+                const originalValidDirections = new Set()
                 for (const [direction, deltaRow, deltaCol] of additions) {
                     otherIndex = [i + deltaRow, j + deltaCol];
                     if (isOutOfBoundsOrFilled(i + deltaRow, j + deltaCol) || willBePlaced.has(`${i + deltaRow},${j + deltaCol}`))
                         //if (isOutOfBoundsOrFilled(i + deltaRow, j + deltaCol))
                         continue;
                     let hasValid = false;
+
+                    originalValidDirections.add(direction);
 
                     outerDominoLoop: for (const domino of dominoesPerCell[`${i},${j}`] ?? dominoes) {
                         if (foundDominoes.some(foundDomino => foundDomino[0] === domino[0] && foundDomino[1] === domino[1]))
@@ -427,7 +430,8 @@ export const updateStructure = (silenced = false) => {
                     cellCoordinatesToIgnore.add(`${validOtherIndex[0]},${validOtherIndex[1]}`);
                     if (hasInvalidatedDirectionFromDominoes) {
                         //oneDirectionFromDominoEliminationCells.add(`${i},${j}`)
-                        oneDirectionFromDominoEliminationCells.add(JSON.stringify({cell: [i,j], direction: validDirections[0]}))
+                        originalValidDirections.delete(validDirections[0])
+                        oneDirectionFromDominoEliminationCells.add(JSON.stringify({cell: [i,j], directions: Array.from(originalValidDirections)}))
                     }
                 }
                 else if (validDirections.length === 0) {
@@ -1243,13 +1247,14 @@ export const solve = async () => {
     updateRegionsAndDominoPartCounts();
     updateEqualsRegions();
 
+    // update structure already pushes to finalSolution (but only in the case of that an "additionacellsthatdefinestructure" or whatever is found. )
     updateStructure();
 
     findSingleCellDominoes();
 
     const singlePlacementCells = Array.from(validCellsToDirections.entries()).filter(([cell, direction]) => direction.length === 1);
     if (singlePlacementCells.length > 0)
-        finalSolution.push({ singlePlacementCells });
+        finalSolution.push({ singlePlacementCells, oneDirectionFromDominoEliminationCells });
 
 
     checkRequiresDouble();
