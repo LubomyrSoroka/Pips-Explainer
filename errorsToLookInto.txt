@@ -46,10 +46,17 @@ Placeholder cells disappearing on guesses. (e.g., check Nov. 23, 2026 Medium)
 Fix errors of back on first entry and forward on last.
 Rearrange next and back buttons.
 Don't await solve in getPuzzle so that you can see the puzzle immediately. show a load icon if the next entry isn't available yet.
+Is it properly displaying the reason for invalid arrangement in the case that it's from canonlybeplacedinonearea?
 
+I'm confused after the change in findSingleCellDominoes. It correctly prevents guessing using the [6,6] domino on Nov. 15 hard.
+But the previous version of this algorithm used had this small piece of code that I remember adding to fix some bug (I don't remember on what puzzle)
+but now it seems to work fine without it? Or does it?
 
 If you open the console and it takes up space, when you solve another puzzle, it messes up the position of the badges. Could this issue be related to scaling? (This issue isn't high prioirty though)
 ** this is more serious: if you switch from Nov 15, 2026 hard to Nov 12, 2026 hard (as one example) it messes up the position of the badges. Console was never opened.
+
+Nov 27, 2026 Hard:
+misplaced arrow to the right on the only single 6 cell.
 
 Oct 30, 2026 Medium:
 When it tries the [2,2] placement in the image, it places [3, 5] in an "impossible" location.
@@ -108,6 +115,7 @@ the last one is still much simpler than whatever it's searching now.
 November 12, 2026 Hard:
 Do not need to consider [5,5] as shown in the image as all doubles have forced positions. This scenario
 can make use of the rule where you try every possibility at a cell (and get that both possibilities imply the placement here)
+THIS IS NOT TRUE HERE SINCE THERE ARE 3 DIFFERENT DOUBLE DOMINOES: [5,5], [2,2] and [3,3]
 
 November 5, 2026 Hard:
 Can place [3,3] earlier??? This would also require having multiple roots for lookahead.
